@@ -31,7 +31,7 @@ else
 fi
 
 # 支持的配置目录列表
-CONFIG_DIRS=(".claude" ".opencode" ".qwen" ".codex" ".gemini")
+CONFIG_DIRS=".claude .opencode .qwen .codex .gemini"
 
 # 获取工具显示名称
 get_tool_display_name() {
@@ -49,13 +49,17 @@ get_tool_display_name() {
 # 向上查找所有存在的配置目录
 find_existing_config_dirs() {
     local current_dir="$(pwd)"
-    local found_dirs=()
+    local found_dirs=""
 
     # 从当前目录向上查找
     while [ "$current_dir" != "/" ] && [ -n "$current_dir" ]; do
-        for config_dir in "${CONFIG_DIRS[@]}"; do
+        for config_dir in $CONFIG_DIRS; do
             if [ -d "$current_dir/$config_dir" ]; then
-                found_dirs+=("$current_dir/$config_dir")
+                if [ -n "$found_dirs" ]; then
+                    found_dirs="$found_dirs|$current_dir/$config_dir"
+                else
+                    found_dirs="$current_dir/$config_dir"
+                fi
             fi
         done
         local parent_dir="$(dirname "$current_dir")"
@@ -64,31 +68,40 @@ find_existing_config_dirs() {
     done
 
     # 如果没找到，检查家目录
-    if [ ${#found_dirs[@]} -eq 0 ]; then
-        for config_dir in "${CONFIG_DIRS[@]}"; do
+    if [ -z "$found_dirs" ]; then
+        for config_dir in $CONFIG_DIRS; do
             if [ -d "$HOME/$config_dir" ]; then
-                found_dirs+=("$HOME/$config_dir")
+                if [ -n "$found_dirs" ]; then
+                    found_dirs="$found_dirs|$HOME/$config_dir"
+                else
+                    found_dirs="$HOME/$config_dir"
+                fi
             fi
         done
     fi
 
-    printf '%s\n' "${found_dirs[@]}"
+    echo "$found_dirs"
 }
 
 # 使用 Python 实现交互式菜单（支持箭头键）
 run_interactive_menu() {
-    python3 << 'PYTHON_SCRIPT'
+    python3 - "$1" << 'PYTHON_SCRIPT'
 import sys
 import termios
 import tty
-import select
+import os
 
-dirs = []
-for line in sys.stdin:
-    dirs.append(line.strip())
+dirs_arg = sys.argv[1] if len(sys.argv) > 1 else ""
+dirs = [d for d in dirs_arg.split('|') if d]
 
 if not dirs:
     print("none")
+    sys.exit(0)
+
+# 检查 stdin 是否是终端
+if not sys.stdin.isatty():
+    # 非终端模式，直接返回第一个
+    print(dirs[0])
     sys.exit(0)
 
 # 终端设置
@@ -101,12 +114,11 @@ try:
     selected = set()
 
     def print_menu():
-        # 清屏并移动光标到顶部
         sys.stdout.write("\033[H\033[J")
         print("使用 ↑↓ 选择，空格 选中/取消，Enter 确认")
         print("")
         for i, d in enumerate(dirs):
-            name = d.split('/')[-1]
+            name = os.path.basename(d)
             tool_map = {
                 '.claude': 'Claude Code',
                 '.opencode': 'OpenCode',
@@ -137,34 +149,30 @@ try:
     while True:
         ch = sys.stdin.read(1)
         if ch == '\x1b':
-            # ESC 序列
             ch2 = sys.stdin.read(1)
             if ch2 == '[':
                 ch3 = sys.stdin.read(1)
-                if ch3 == 'A':  # 上
+                if ch3 == 'A':
                     if cursor > 0:
                         cursor -= 1
                         print_menu()
-                elif ch3 == 'B':  # 下
+                elif ch3 == 'B':
                     if cursor < len(dirs) - 1:
                         cursor += 1
                         print_menu()
         elif ch == ' ':
-            # 空格
             if cursor in selected:
                 selected.remove(cursor)
             else:
                 selected.add(cursor)
             print_menu()
         elif ch == '\n' or ch == '\r':
-            # Enter
             if selected:
                 result = [dirs[i] for i in sorted(selected)]
                 print('\n'.join(result))
                 sys.stdout.flush()
                 sys.exit(0)
             else:
-                # 没有选择时，默认选中当前项
                 print(dirs[cursor])
                 sys.stdout.flush()
                 sys.exit(0)
@@ -178,50 +186,9 @@ finally:
 PYTHON_SCRIPT
 }
 
-# 主逻辑
-echo "${CYAN}${BOLD}Planify Skill 安装程序${NC}"
-echo ""
-echo "正在检测 AI 工具配置目录..."
-echo ""
-
-mapfile -t FOUND_DIRS < <(find_existing_config_dirs)
-
-SELECTED_DIRS=()
-
-if [ ${#FOUND_DIRS[@]} -gt 1 ]; then
-    # 发现多个配置目录，使用交互式菜单
-    echo "${CYAN}发现多个 AI 工具配置目录：${NC}"
-    echo ""
-
-    # 短暂延迟让用户看到提示
-    sleep 0.5
-
-    # 运行交互式菜单
-    MENU_OUTPUT=$(printf '%s\n' "${FOUND_DIRS[@]}" | run_interactive_menu || echo "CANCEL")
-
-    if [ "$MENU_OUTPUT" = "CANCEL" ] || [ "$MENU_OUTPUT" = "none" ]; then
-        echo "${RED}安装已取消${NC}"
-        exit 1
-    fi
-
-    # 解析输出
-    while IFS= read -r line; do
-        [ -n "$line" ] && SELECTED_DIRS+=("$line")
-    done <<< "$MENU_OUTPUT"
-
-elif [ ${#FOUND_DIRS[@]} -eq 1 ]; then
-    SELECTED_DIRS=("${FOUND_DIRS[0]}")
-    echo "${CYAN}找到配置目录：${SELECTED_DIRS[0]}${NC}"
-    echo ""
-else
-    # 未找到任何配置目录
-    echo "${YELLOW}⚠️  未找到任何 AI 工具配置目录${NC}"
-    echo ""
-    echo "支持的工具：Claude Code, OpenCode, Qwen Qoder, OpenAI Codex, Gemini CLI"
-    echo ""
-
-    # 使用 Python 显示创建菜单
-    SELECTED_CONFIG=$(python3 << 'PYTHON_SCRIPT'
+# 使用 Python 显示创建目录菜单
+run_create_menu() {
+    python3 << 'PYTHON_SCRIPT'
 import sys
 import termios
 import tty
@@ -233,6 +200,11 @@ options = [
     (".codex", "OpenAI Codex"),
     (".gemini", "Gemini CLI")
 ]
+
+# 检查 stdin 是否是终端
+if not sys.stdin.isatty():
+    print(".claude")
+    sys.exit(0)
 
 fd = sys.stdin.fileno()
 old_settings = termios.tcgetattr(fd)
@@ -278,7 +250,49 @@ try:
 finally:
     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 PYTHON_SCRIPT
-    )
+}
+
+# 主逻辑
+echo "${CYAN}${BOLD}Planify Skill 安装程序${NC}"
+echo ""
+echo "正在检测 AI 工具配置目录..."
+echo ""
+
+FOUND_DIRS=$(find_existing_config_dirs)
+
+# 将找到的目录转换为数组
+IFS='|' read -ra FOUND_DIRS_ARRAY <<< "$FOUND_DIRS"
+
+SELECTED_DIRS=()
+
+if [ -n "$FOUND_DIRS" ] && [ "${#FOUND_DIRS_ARRAY[@]}" -gt 1 ]; then
+    echo "${CYAN}发现多个 AI 工具配置目录：${NC}"
+    echo ""
+
+    sleep 0.5
+
+    MENU_OUTPUT=$(run_interactive_menu "$FOUND_DIRS" || echo "CANCEL")
+
+    if [ "$MENU_OUTPUT" = "CANCEL" ] || [ "$MENU_OUTPUT" = "none" ] || [ -z "$MENU_OUTPUT" ]; then
+        echo "${RED}安装已取消${NC}"
+        exit 1
+    fi
+
+    while IFS= read -r line; do
+        [ -n "$line" ] && SELECTED_DIRS+=("$line")
+    done <<< "$MENU_OUTPUT"
+
+elif [ -n "$FOUND_DIRS" ]; then
+    SELECTED_DIRS=("$FOUND_DIRS")
+    echo "${CYAN}找到配置目录：${SELECTED_DIRS[0]}${NC}"
+    echo ""
+else
+    echo "${YELLOW}⚠️  未找到任何 AI 工具配置目录${NC}"
+    echo ""
+    echo "支持的工具：Claude Code, OpenCode, Qwen Qoder, OpenAI Codex, Gemini CLI"
+    echo ""
+
+    SELECTED_CONFIG=$(run_create_menu || echo "")
 
     if [ -z "$SELECTED_CONFIG" ]; then
         echo "${RED}安装已取消${NC}"
@@ -321,9 +335,9 @@ for CONFIG_DIR in "${SELECTED_DIRS[@]}"; do
         exit 1
     fi
 
-    FILES=("SKILL.md" "example.md" "planify-template.md")
+    FILES="SKILL.md example.md planify-template.md"
 
-    for file in "${FILES[@]}"; do
+    for file in $FILES; do
         url="https://raw.githubusercontent.com/${REPO}/${BRANCH}/$CONFIG_NAME/skills/planify/${file}"
         echo "  下载 ${file}..."
         $DOWNLOAD_CMD "$url" -o "$TARGET_DIR/planify/${file}"
