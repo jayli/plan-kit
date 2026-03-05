@@ -196,6 +196,23 @@ do_install() {
 EOF
     printf "  Creating settings.json...\n"
 
+    # 创建 plan 目录
+    mkdir -p "$target/plan"
+    printf "  Creating plan/ directory...\n"
+
+    # 将 plan/ 目录加入 .gitignore
+    local gitignore_file="$(pwd)/.gitignore"
+    local plan_ignore_pattern="${rel_target}/plan/"
+    if [ -f "$gitignore_file" ]; then
+        if ! grep -qF "$plan_ignore_pattern" "$gitignore_file" 2>/dev/null; then
+            echo "$plan_ignore_pattern" >> "$gitignore_file"
+            printf "  Added %s to .gitignore\n" "$plan_ignore_pattern"
+        fi
+    else
+        echo "$plan_ignore_pattern" > "$gitignore_file"
+        printf "  Created .gitignore with %s\n" "$plan_ignore_pattern"
+    fi
+
     if [ -f "$target/SKILL.md" ]; then
         printf "${GREEN}  $(get_text "install_success")${NC}\n"
         printf "     $(get_text "location")：%s\n" "$target"

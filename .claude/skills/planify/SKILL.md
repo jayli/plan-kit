@@ -18,12 +18,21 @@ user-invocable: true
 
 ### 任务文件规范
 
-- **文件名**: `.claude.plan.md` (位于项目根目录)
+- **文件位置**: `<skill_dir>/plan/` 目录（`skill_dir` 从 `settings.json` 读取）
+- **文件名**: `plan.<skill-name>.<timestamp>.md`
+  - `<skill-name>`: 当前执行的 skill 名称
+  - `<timestamp>`: Unix 时间戳（秒级），确保唯一性
 - **格式**: 使用 Markdown Todo 列表，必须包含状态列 `[ ]` (待办), `[x]` (完成), `[!]` (错误)
 - **内容结构**:
   1. 总体目标描述
   2. 任务列表 (含状态)
   3. 执行日志 (每次执行追加)
+
+### Plan 文件路径获取方法
+
+1. 读取 `<skill_dir>/settings.json` 中的 `skill_dir` 字段
+2. Plan 文件路径 = `<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`
+3. 如果 `settings.json` 不存在，使用默认值 `.claude/skills/planify/`
 
 ### 任务流程
 
@@ -56,16 +65,18 @@ user-invocable: true
 ```
 
 
-#### 阶段 B: 初始化 (如果 `.claude.plan.md` 不存在)
+#### 阶段 B: 初始化 (如果 plan 文件不存在)
 
 1. 分析用户输入的需求。首先判断用户有没有传入<skill-name>，传入<skill-name>则开启针对<skill-name> 的改造。
 2. 如果传入的不是 <skill-name>，而是一个提示词任务，则带入这个任务，进入接下来流程，即将任务拆解为具体的、可执行的原子任务步骤。
-4. 创建 `.claude.plan.md`，根据需求写入任务列表，所有任务初始状态为 `[ ]`。
-5. **停止**，自动化模式下直接开始。
+3. 从 `settings.json` 读取 `skill_dir`，计算 plan 文件路径：`<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`
+4. 创建 `plan/` 目录（如果不存在）
+5. 创建 plan 文件，根据需求写入任务列表，所有任务初始状态为 `[ ]`。
+6. **停止**，自动化模式下直接开始。
 
-#### 阶段 C: 执行循环 (如果 `.claude.plan.md` 存在)
+#### 阶段 C: 执行循环 (如果 `plan 文件` 存在)
 
-1. **读取**: 读取 `.claude.plan.md` 的当前内容。
+1. **读取**: 读取 `plan 文件` 的当前内容。
 2. **检查**:
    - 如果所有任务都是 `[x]`，输出"✅ 所有任务已完成"，并显示最终总结。结束。
    - 如果存在 `[!]` 错误任务，报告错误并询问是否重试或跳过。
@@ -75,7 +86,7 @@ user-invocable: true
    - 使用必要的工具 (读文件, 写文件, 编辑文件等)。
 4. **验证**: 确认任务是否成功完成。
 5. **更新 (关键步骤)**:
-   - 必须修改 `.claude.plan.md`：
+   - 必须修改 `plan 文件`：
      - 将当前任务状态改为 `[x]` (成功) 或 `[!]` (失败)。
      - 在"执行日志"部分追加本次操作的简要记录和结果（精确到分钟）。
    - 保存文件。
@@ -89,11 +100,11 @@ user-invocable: true
 
 ### 约束与最佳实践
 
-- **持久化**: 任何进度更新必须立即写入 `.claude.plan.md`。
+- **持久化**: 任何进度更新必须立即写入 plan 文件（`<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`）。
 - **原子性**: 每个任务必须是独立的，执行完一个再处理下一个。
 - **容错**: 如果某个任务执行失败，标记为 `[!]` 并记录错误原因，不要卡死，等待用户干预。
 - **透明度**: 在每次回复的开头，简要显示当前进度 (例如: "进度: 3/10 任务完成")。
-
+- **自动清理**: 任务全部完成后，清理旧的 plan 文件（保留每个 skill 最近 3 个或 7 天内的文件）。
 ### 触发指令
 
 当用户调用此 Skill 时：
@@ -114,7 +125,7 @@ user-invocable: true
 
 检查 SKILL.md 是否包含以下特征：
 - "基于文件的任务状态管理"
-- ".claude.plan.md"
+- "plan 文件"
 - "阶段 A" 和 "阶段 B"
 - "持久化"、"原子性"、"容错"、"透明度" 等原则
 
@@ -144,10 +155,18 @@ user-invocable: true
 - 格式正确，结构清晰
 
 
-### 任务 7: 将`.claude.plan.md`加入`.gitignore`文件
+### 任务 7: 将 plan 目录加入 `.gitignore` 文件
 
-如果`.claude.plan.md`已经在`.gitignore`中，则不做改动，如果不在的话就将`.claude.plan.md`放入项目根目录的`.gitignore`中
+从 `settings.json` 读取 `skill_dir`，将 `<skill_dir>/plan/` 目录加入项目根目录的 `.gitignore` 文件中。
+如果已经存在，则不做改动。
 
-### 任务 8: 输出改造总结
+### 任务 8: 清理旧的 plan 文件
+
+遍历 `<skill_dir>/plan/` 目录，对每个 skill 的 plan 文件进行清理：
+1. 按时间戳排序，保留每个 skill 最近 3 个文件
+2. 或者保留最近 7 天内的文件
+3. 删除不满足条件的旧文件
+
+### 任务 9: 输出改造总结
 
 显示改造前后的对比，说明哪些部分被添加或修改。
