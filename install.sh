@@ -118,10 +118,13 @@ interactive_menu() {
     local cur=0
     local key=""
 
-    # 隐藏光标
-    printf "\033[?25l"
+    # 隐藏光标并保存当前位置
+    printf "\033[?25l\033[s"
 
     while true; do
+        # 恢复到保存的位置并清除从光标到屏幕末尾的内容
+        printf "\033[u\033[J"
+
         # 1. 渲染菜单
         echo ""
         echo -e "--- $title ---"
@@ -130,9 +133,9 @@ interactive_menu() {
 
         for i in "${!options[@]}"; do
             if [[ $i -eq $cur ]]; then
-                printf "${CYAN}  > %-60s${NC}\n" "${options[$i]}"
+                echo -e "${CYAN}  > ${options[$i]}${NC}"
             else
-                printf "    %-60s\n" "${options[$i]}"
+                echo -e "    ${options[$i]}"
             fi
         done
 
@@ -165,17 +168,11 @@ interactive_menu() {
                 break
                 ;;
         esac
-
-        # 4. 将光标移动回顶部以重绘菜单
-        # 移动行数 = 标题(1) + 说明(1) + 间隔(2) + 选项(count)
-        local move_back=$((count + 4))
-        printf "\033[${move_back}A"
     done
 
-    # 恢复光标并跳到菜单下方
-    local move_forward=$((count + 5))
-    printf "\033[${move_forward}B"
+    # 恢复光标并换行
     printf "\033[?25h"
+    echo ""
 }
 
 # 核心：确保从终端读取输入
