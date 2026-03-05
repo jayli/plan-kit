@@ -24,16 +24,22 @@ GRAY="\033[90m"
 NC="\033[0m"
 
 # 所有支持的配置目录
-ALL_CONFIG_DIRS=(".claude" ".opencode" ".qwen" ".codex" ".gemini")
+ALL_CONFIG_DIRS=(".claude" ".opencode" ".qwen" ".codex" ".gemini" ".antigravity" ".windsurf" ".roocode" ".kilocode" ".codebuddy" ".qoder")
 
 # 获取工具显示名称
 get_tool_name() {
     case "$1" in
         .claude) echo "Claude Code" ;;
         .opencode) echo "OpenCode" ;;
-        .qwen) echo "Qwen Qoder" ;;
+        .qwen) echo "Qwen Code" ;;
         .codex) echo "OpenAI Codex" ;;
         .gemini) echo "Gemini CLI" ;;
+        .antigravity) echo "Antigravity" ;;
+        .windsurf) echo "Windsurf" ;;
+        .roocode) echo "Roo Code" ;;
+        .kilocode) echo "Kilo Code" ;;
+        .codebuddy) echo "CodeBuddy CLI" ;;
+        .qoder) echo "Qoder-CLI" ;;
         *) echo "$1" ;;
     esac
 }
@@ -184,6 +190,11 @@ exec < /dev/tty
 
 clear
 
+echo ""
+echo "█▀▀█ █░░░ █▀▀█ █▀▀▄ ▀█▀ █▀▀▀ █░░█"
+echo "█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█"
+echo "▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀"
+echo ""
 printf "${BOLD}${CYAN}Planify Skill 安装程序${NC}\n"
 echo ""
 echo "正在检测当前项目的 AI 工具配置目录..."
@@ -267,12 +278,9 @@ done
 # 添加退出选项
 MENU_ITEMS+=("退出安装程序")
 
-printf "${GREEN}所有支持的 AI 工具：${NC}\n"
-echo ""
-
 # 显示交互式菜单（单选）
 RESULT_INDICES=()
-interactive_menu "请选择要安装/升级的工具" "false" "${MENU_ITEMS[@]}"
+interactive_menu "${GREEN}请选择要安装/升级的工具${NC}" "false" "${MENU_ITEMS[@]}"
 
 if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
     printf "\n${RED}安装已取消${NC}\n"

@@ -9,15 +9,21 @@ $REPO = "jayli/plan-kit"
 $BRANCH = if ($env:PLAN_KIT_BRANCH) { $env:PLAN_KIT_BRANCH } else { "main" }
 
 # 所有支持的配置目录
-$ALL_CONFIG_DIRS = @(".claude", ".opencode", ".qwen", ".codex", ".gemini")
+$ALL_CONFIG_DIRS = @(".claude", ".opencode", ".qwen", ".codex", ".gemini", ".antigravity", ".windsurf", ".roocode", ".kilocode", ".codebuddy", ".qoder")
 
 # 工具名称映射
 $TOOL_NAMES = @{
     ".claude" = "Claude Code"
     ".opencode" = "OpenCode"
-    ".qwen" = "Qwen Qoder"
+    ".qwen" = "Qwen Code"
     ".codex" = "OpenAI Codex"
     ".gemini" = "Gemini CLI"
+    ".antigravity" = "Antigravity"
+    ".windsurf" = "Windsurf"
+    ".roocode" = "Roo Code"
+    ".kilocode" = "Kilo Code"
+    ".codebuddy" = "CodeBuddy CLI"
+    ".qoder" = "Qoder-CLI"
 }
 
 function Get-ToolName {
@@ -114,6 +120,7 @@ function Do-Install {
 # 交互式菜单（支持多选）
 function Show-InteractiveMenu {
     param(
+        [string]$Title,
         [string[]]$Items,
         [switch]$MultiSelect,
         [ref]$SelectedIndices
@@ -126,6 +133,8 @@ function Show-InteractiveMenu {
     function Draw-Menu {
         Clear-Host
 
+        Write-Host ""
+        Write-Host "--- $Title ---" -ForegroundColor Green
         if ($MultiSelect) {
             Write-Host "使用 ↑↓ 选择，空格 选中/取消，Enter 确认" -ForegroundColor Gray
         } else {
@@ -232,6 +241,11 @@ function Show-InteractiveMenu {
 
 Clear-Host
 
+Write-Host ""
+Write-Host "█▀▀█ █░░░ █▀▀█ █▀▀▄ ▀█▀ █▀▀▀ █░░█"
+Write-Host "█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█"
+Write-Host "▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀"
+Write-Host ""
 Write-Host "Planify Skill 安装程序" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "正在检测当前项目的 AI 工具配置目录..."
@@ -315,15 +329,9 @@ foreach ($i in $ORDERED_INDICES) {
 # 添加退出选项
 $MENU_ITEMS += "退出安装程序"
 
-# 添加退出选项
-$MENU_ITEMS += "退出安装程序"
-
-Write-Host "所有支持的 AI 工具：" -ForegroundColor Green
-Write-Host ""
-
 # 显示交互式菜单（单选）
 $selectedIndices = @()
-if (Show-InteractiveMenu -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
+if (Show-InteractiveMenu -Title "请选择要安装/升级的工具" -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
     $idx = $selectedIndices[0]
 
     # 检查是否选择了退出选项
