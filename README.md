@@ -2,7 +2,7 @@
 
 > 将你的 Skills 改造为基于计划文件驱动的自动化执行模式，让任务执行更稳健
 
-Planify 是一个 Skill，它将为其他 Skills 添加基于计划文件的任务状态管理机制，实现复杂任务的自动化拆解、执行和追踪。
+Planify 是一个 Skill，为其他 Skills 添加基于计划文件的任务状态管理机制，实现复杂任务的自动化拆解、执行和追踪。
 
 ## ✨ 特性
 
@@ -82,15 +82,6 @@ go ahead
 
 2024-01-01 10:00 - 开始执行任务 1: 检查目标 skill 是否存在 ✅
 2024-01-01 10:01 - 完成任务 2: 读取 SKILL.md 文件 ✅
-```
-
-## 🔧 高级配置
-
-### 指定分支安装
-
-```bash
-# 使用特定分支版本
-PLAN_KIT_BRANCH=dev curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.sh | sh
 ```
 
 ### 自动将 .claude.plan.md 加入忽略列表

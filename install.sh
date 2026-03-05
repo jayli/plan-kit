@@ -13,20 +13,76 @@ set -e
 REPO="jayli/plan-kit"
 BRANCH="${PLAN_KIT_BRANCH:-main}"
 
-# 目标目录：当前工程的 .claude/skills
-TARGET_DIR="$(pwd)/.claude/skills"
-
 # 颜色输出（兼容不支持颜色的终端）
 if command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
     GREEN="\033[32m"
     RED="\033[31m"
     YELLOW="\033[33m"
+    CYAN="\033[36m"
     NC="\033[0m" # No Color
 else
     GREEN=""
     RED=""
     YELLOW=""
+    CYAN=""
     NC=""
+fi
+
+# 向上查找 .claude 目录
+find_claude_dir() {
+    local current_dir="$(pwd)"
+    local claude_dir=""
+
+    # 从当前目录向上查找，直到根目录
+    while [ "$current_dir" != "/" ] && [ -n "$current_dir" ]; do
+        if [ -d "$current_dir/.claude" ]; then
+            claude_dir="$current_dir/.claude"
+            break
+        fi
+        local parent_dir="$(dirname "$current_dir")"
+        # 如果父目录和当前目录相同，说明已经到根目录了
+        if [ "$parent_dir" = "$current_dir" ]; then
+            break
+        fi
+        current_dir="$parent_dir"
+    done
+
+    # 如果没找到，检查家目录
+    if [ -z "$claude_dir" ] && [ -d "$HOME/.claude" ]; then
+        claude_dir="$HOME/.claude"
+    fi
+
+    echo "$claude_dir"
+}
+
+# 查找 .claude 目录
+CLAUDE_DIR=$(find_claude_dir)
+
+if [ -n "$CLAUDE_DIR" ] && [ -d "$CLAUDE_DIR" ]; then
+    echo "${CYAN}找到 .claude 目录：$CLAUDE_DIR${NC}"
+    echo ""
+    TARGET_DIR="$CLAUDE_DIR/skills"
+else
+    echo "${YELLOW}⚠️  未找到 .claude 目录${NC}"
+    echo ""
+    echo "当前项目尚未被 Claude 初始化。"
+    echo ""
+    read -p "是否在当前目录创建 .claude/skills/ 目录？[y/N] " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        TARGET_DIR="$(pwd)/.claude/skills"
+        echo "${CYAN}将在当前目录创建 .claude/skills/...${NC}"
+    else
+        echo "${RED}安装已取消${NC}"
+        exit 1
+    fi
+fi
+
+# 检查是否已安装
+if [ -f "$TARGET_DIR/planify/SKILL.md" ]; then
+    echo "检测到已安装的 planify skill"
+    echo "即将升级到最新版本..."
+    echo ""
 fi
 
 echo "🚀 开始安装 planify skill..."
