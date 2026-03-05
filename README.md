@@ -98,10 +98,6 @@ Transform the report skill to plan-driven mode
 2024-01-01 10:01 - Completed task 2: Read SKILL.md file ✅
 ```
 
-### Automatically adding `.claude.plan.md` to ignore list
-
-The task generates `.claude.plan.md`, which is automatically added to `.gitignore`.
-
 ## 📄 License
 
 MIT License
