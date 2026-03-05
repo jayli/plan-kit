@@ -2,7 +2,7 @@
 
 ## What and why
 
-A simple implementation of the **PLAN-and-Execute mode driven by the Plan file**.
+A implementation of the **PLAN-and-Execute mode driven by the Plan file** for Claude code or other cli tools.
 
 - Upgrade your Skills into a plan file-driven execution mode for more robust task execution
 - Run the prompt text directly in PLAN-and-Execute mode. Enabling automated tracking of complex tasks.
@@ -44,6 +44,8 @@ bash <(curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.s
 
 ### Basic Usage
 
+exec in your Claude Code or other cli client.
+
 ```bash
 # Upgrade a skill to plan-driven mode
 /planify <skill-name>
@@ -76,7 +78,7 @@ go ahead
         └── planify-template.md   # Plan-driven template
 ```
 
-### .claude.plan.md Example
+### Plan file Example
 
 ```markdown
 # Task Plan
