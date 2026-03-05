@@ -40,18 +40,24 @@ get_tool_name() {
 # 查找项目中的配置目录
 find_project_configs() {
     local current_dir="$(pwd)"
-    local found=()
+    local found_list=""
 
     while [ "$current_dir" != "/" ] && [ "$current_dir" != "" ]; do
         for cfg in "${ALL_CONFIG_DIRS[@]}"; do
-            [ -d "$current_dir/$cfg" ] && found+=("$current_dir/$cfg")
+            if [ -d "$current_dir/$cfg" ]; then
+                if [ -n "$found_list" ]; then
+                    found_list="$found_list|$current_dir/$cfg"
+                else
+                    found_list="$current_dir/$cfg"
+                fi
+            fi
         done
         local parent="$(dirname "$current_dir")"
         [ "$parent" = "$current_dir" ] && break
         current_dir="$parent"
     done
 
-    printf '%s\n' "${found[@]}"
+    printf '%s' "$found_list"
 }
 
 # 检查是否已安装
@@ -90,136 +96,124 @@ do_install() {
     fi
 }
 
-# 交互式菜单（支持多选）
-# 返回选中的索引，空格分隔
+# 交互式菜单函数（支持多选）
+# 参数：标题，选项数组（用 | 分隔）
+# 返回：选中的索引，空格分隔
 interactive_menu() {
-    local -n items_ref=$1
-    local -n result_ref=$2
-    local multi=${3:-true}
+    local title="$1"
+    local multi_select="${2:-false}"
+    shift 2
+    local options=("$@")
+    local count=${#options[@]}
+    local cur=0
+    local key=""
 
-    local cursor=0
-    local -A selected
-
-    # 保存终端设置
-    if [ -t 0 ]; then
-        old_settings=$(stty -g 2>/dev/null || echo "")
-        trap 'stty "$old_settings" 2>/dev/null' EXIT
-    fi
+    # 选中状态数组
+    declare -A selected
 
     # 隐藏光标
     printf "\033[?25l"
 
-    local function draw() {
-        # 清屏并移动光标到顶部
-        printf "\033[H\033[J"
-
-        if [ "$multi" = "true" ]; then
-            printf "${BOLD}使用 ↑↓ 选择，空格 选中/取消，Enter 确认${NC}\n"
-        else
-            printf "${BOLD}使用 ↑↓ 选择，Enter 确认${NC}\n"
-        fi
-        printf "${GRAY}输入 0 取消安装${NC}\n"
-        echo ""
-
-        for i in "${!items_ref[@]}"; do
-            local item="${items_ref[$i]}"
-            local prefix="   "
-
-            if [ $i -eq $cursor ]; then
-                prefix="${CYAN} ▶ ${NC}"
-            fi
-
-            if [ "$multi" = "true" ]; then
-                if [ -n "${selected[$i]}" ]; then
-                    printf "${prefix}${GREEN}[✓]${NC} %s\n" "$item"
-                else
-                    printf "${prefix}[ ] %s\n" "$item"
-                fi
-            else
-                printf "${prefix}%s\n" "$item"
-            fi
-        done
-        echo ""
-    }
-
-    draw
+    # 计算需要向上移动的行数
+    local move_up=$((count + 3))
 
     while true; do
-        # 从 /dev/tty 读取，绕过 stdin 重定向
-        if [ -t 0 ]; then
-            read -n1 -s key < /dev/tty 2>/dev/null || true
+        # 1. 渲染菜单
+        echo ""
+        echo -e "--- $title ---"
+        if [ "$multi_select" = "true" ]; then
+            echo -e "${GRAY}空格：选中/取消  Enter: 确认  0: 取消${NC}"
         else
-            read -n1 -s key 2>/dev/null || true
+            echo -e "${GRAY}Enter: 确认  0: 取消${NC}"
+        fi
+        echo ""
+
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $cur ]]; then
+                if [ "$multi_select" = "true" ] && [ -n "${selected[$i]}" ]; then
+                    echo -e "${CYAN}  > [✓] ${options[$i]}${NC}"
+                elif [ "$multi_select" = "true" ]; then
+                    echo -e "${CYAN}  > [ ] ${options[$i]}${NC}"
+                else
+                    echo -e "${CYAN}  > ${options[$i]}${NC}"
+                fi
+            else
+                if [ "$multi_select" = "true" ] && [ -n "${selected[$i]}" ]; then
+                    echo -e "    ${GREEN}[✓]${NC} ${options[$i]}"
+                elif [ "$multi_select" = "true" ]; then
+                    echo -e "    [ ] ${options[$i]}"
+                else
+                    echo -e "    ${options[$i]}"
+                fi
+            fi
+        done
+
+        # 2. 读取按键
+        IFS= read -rsn1 -d '' key < /dev/tty 2>/dev/null || key=""
+
+        # 处理转义序列 (方向键)
+        if [[ "$key" == $'\e' ]]; then
+            IFS= read -rsn2 -d '' key < /dev/tty 2>/dev/null || key=""
+            # 去掉 [ 前缀
+            key="${key#\[}"
         fi
 
+        # 3. 逻辑判断
         case "$key" in
-            # ESC 序列 (箭头键)
-            $'\x1b')
-                read -n2 -s rest 2>/dev/null || true
-                case "$rest" in
-                    '[A') [ $cursor -gt 0 ] && ((cursor--)) && draw ;;  # 上
-                    '[B') [ $cursor -lt $((${#items_ref[@]}-1)) ] && ((cursor++)) && draw ;;  # 下
-                esac
+            "A") # 向上键
+                ((cur--))
+                [ $cur -lt 0 ] && cur=$((count - 1))
                 ;;
-            ' ')  # 空格 - 多选切换
-                if [ "$multi" = "true" ]; then
-                    if [ -n "${selected[$cursor]}" ]; then
-                        unset selected[$cursor]
+            "B") # 向下键
+                ((cur++))
+                [ $cur -ge $count ] && cur=0
+                ;;
+            " ") # 空格 - 仅多选模式
+                if [ "$multi_select" = "true" ]; then
+                    if [ -n "${selected[$cur]}" ]; then
+                        unset selected[$cur]
                     else
-                        selected[$cursor]=1
+                        selected[$cur]=1
                     fi
-                    draw
                 fi
                 ;;
-            ''|$'\n')  # Enter - 确认
-                printf "\033[?25h"  # 显示光标
-                printf "\n"
-
-                if [ "$multi" = "true" ]; then
-                    if [ ${#selected[@]} -gt 0 ]; then
-                        result_ref=("${!selected[@]}")
-                        return 0
+            "" | $'\n' | $'\r') # Enter
+                # 多选模式：如果没有选择任何项，默认选中当前项
+                if [ "$multi_select" = "true" ]; then
+                    if [ ${#selected[@]} -eq 0 ]; then
+                        RESULT_INDICES=($cur)
                     else
-                        # 未选择时默认当前项
-                        result_ref=($cursor)
-                        return 0
+                        RESULT_INDICES=(${!selected[@]})
                     fi
                 else
-                    result_ref=($cursor)
-                    return 0
+                    RESULT_INDICES=($cur)
                 fi
+                break
                 ;;
-            '0')  # 0 - 取消
-                printf "\033[?25h"
-                printf "\n"
-                return 1
+            "0") # 取消
+                RESULT_INDICES=()
+                break
                 ;;
         esac
+
+        # 4. 将光标移动回顶部以重绘菜单
+        printf "\033[${move_up}A"
     done
+
+    # 恢复光标
+    printf "\033[?25h"
+    # 移动到菜单下方
+    printf "\033[${move_up}B"
 }
 
-# 显示确认菜单并返回选中的索引
-show_menu() {
-    local -n menu_items=$1
-    local -n menu_result=$2
-    local multi=${3:-true}
-
-    # 切换到备用屏幕
-    printf "\033[?1049h"
-    printf "\033[H"
-
-    local result
-    if interactive_menu menu_items result "$multi"; then
-        menu_result=("${result[@]}")
-        # 恢复主屏幕
-        printf "\033[?1049l"
-        return 0
-    else
-        # 恢复主屏幕
-        printf "\033[?1049l"
-        return 1
-    fi
-}
+# 核心：确保从终端读取输入
+# 检查 /dev/tty 是否可用，如果不可用则尝试 /dev/console 或直接使用 stdin
+if [ -e /dev/tty ]; then
+    exec < /dev/tty
+elif [ -e /dev/console ]; then
+    exec < /dev/console
+fi
+# 如果都没有，就使用默认 stdin（可能是管道，但脚本仍能执行非交互部分）
 
 # ============ 主逻辑 ============
 
@@ -230,17 +224,18 @@ echo ""
 echo "正在检测当前项目的 AI 工具配置目录..."
 echo ""
 
-# 查找配置目录
-mapfile -t FOUND_DIRS < <(find_project_configs)
+FOUND_DIRS="$(find_project_configs)"
 
-if [ ${#FOUND_DIRS[@]} -gt 0 ]; then
+if [ -n "$FOUND_DIRS" ]; then
     # 找到配置目录
     printf "${GREEN}检测到以下 AI 工具已配置：${NC}\n"
     echo ""
 
-    # 构建菜单项
+    # 将目录转换为数组并构建菜单项
+    IFS='|' read -ra DIRS_ARR <<< "$FOUND_DIRS"
     MENU_ITEMS=()
-    for dir in "${FOUND_DIRS[@]}"; do
+    for dir in "${DIRS_ARR[@]}"; do
+        [ -z "$dir" ] && continue
         dn="$(basename "$dir")"
         tn="$(get_tool_name "$dn")"
         if is_installed "$dir"; then
@@ -250,16 +245,19 @@ if [ ${#FOUND_DIRS[@]} -gt 0 ]; then
         fi
     done
 
-    # 显示交互式菜单
-    if show_menu MENU_ITEMS SELECTED_INDICES true; then
-        # 安装到选中的目录
-        for idx in "${SELECTED_INDICES[@]}"; do
-            do_install "${FOUND_DIRS[$idx]}"
-        done
-    else
-        printf "${RED}安装已取消${NC}\n"
+    # 显示交互式菜单（多选）
+    RESULT_INDICES=()
+    interactive_menu "请选择要安装/升级的工具（多选）" "true" "${MENU_ITEMS[@]}"
+
+    if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
+        printf "\n${RED}安装已取消${NC}\n"
         exit 0
     fi
+
+    # 安装到选中的目录
+    for idx in "${RESULT_INDICES[@]}"; do
+        do_install "${DIRS_ARR[$idx]}"
+    done
 
 else
     # 未找到配置目录
@@ -276,23 +274,25 @@ else
     done
 
     printf "${CYAN}请选择要创建的配置目录：${NC}\n"
-    echo ""
 
     # 显示交互式菜单（单选）
-    if show_menu MENU_ITEMS SELECTED_INDEX false; then
-        idx="${SELECTED_INDEX[0]}"
-        SELECTED_CONFIG="${ALL_CONFIG_DIRS[$idx]}"
+    RESULT_INDICES=()
+    interactive_menu "请选择配置目录类型" "false" "${MENU_ITEMS[@]}"
 
-        echo ""
-        read -p "是否在当前目录创建 $SELECTED_CONFIG/skills/ 目录？[y/N] " -n 1 -r
-        echo ""
+    if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
+        printf "\n${RED}安装已取消${NC}\n"
+        exit 0
+    fi
 
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            do_install "$(pwd)/$SELECTED_CONFIG"
-        else
-            printf "${RED}安装已取消${NC}\n"
-            exit 0
-        fi
+    idx="${RESULT_INDICES[0]}"
+    SELECTED_CONFIG="${ALL_CONFIG_DIRS[$idx]}"
+
+    echo ""
+    read -p "是否在当前目录创建 $SELECTED_CONFIG/skills/ 目录？[y/N] " -n 1 -r
+    echo ""
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        do_install "$(pwd)/$SELECTED_CONFIG"
     else
         printf "${RED}安装已取消${NC}\n"
         exit 0
