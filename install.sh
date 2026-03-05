@@ -118,8 +118,8 @@ interactive_menu() {
     local cur=0
     local key=""
 
-    # 计算需要向上移动的行数
-    local move_up=$((count + 3))
+    # 隐藏光标
+    printf "\033[?25l"
 
     while true; do
         # 1. 渲染菜单
@@ -130,9 +130,9 @@ interactive_menu() {
 
         for i in "${!options[@]}"; do
             if [[ $i -eq $cur ]]; then
-                echo -e "${CYAN}  > ${options[$i]}${NC}"
+                printf "${CYAN}  > %-60s${NC}\n" "${options[$i]}"
             else
-                echo -e "    ${options[$i]}"
+                printf "    %-60s\n" "${options[$i]}"
             fi
         done
 
@@ -167,13 +167,15 @@ interactive_menu() {
         esac
 
         # 4. 将光标移动回顶部以重绘菜单
-        printf "\033[${move_up}A"
+        # 移动行数 = 标题(1) + 说明(1) + 间隔(2) + 选项(count)
+        local move_back=$((count + 4))
+        printf "\033[${move_back}A"
     done
 
-    # 恢复光标
+    # 恢复光标并跳到菜单下方
+    local move_forward=$((count + 5))
+    printf "\033[${move_forward}B"
     printf "\033[?25h"
-    # 移动到菜单下方
-    printf "\033[${move_up}B"
 }
 
 # 核心：确保从终端读取输入
