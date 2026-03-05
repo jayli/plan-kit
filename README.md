@@ -40,6 +40,8 @@ bash <(curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.s
 
 # Example: upgrade the skill named report
 /planify report
+
+# Then, when using /report, it is based on the plan-file-driven mode
 ```
 
 If the conversation is interrupted, you can continue with:
