@@ -161,8 +161,9 @@ function Do-Install {
 
     # 根据语言选择 skill 目录
     $skillDir = "planify"
+    $skillSubdir = ""
     if (-not (Test-ChineseLanguage)) {
-        $skillDir = "planify-en"
+        $skillSubdir = "en/"
     }
 
     Write-Host ""
@@ -182,7 +183,7 @@ function Do-Install {
 
     foreach ($file in $FILES) {
         Write-Host "  $(Get-Text "downloading") $file..."
-        $url = "https://raw.githubusercontent.com/$REPO/$BRANCH/.claude/skills/$skillDir/$file"
+        $url = "https://raw.githubusercontent.com/$REPO/$BRANCH/.claude/skills/$skillDir/$skillSubdir$file"
         try {
             Invoke-RestMethod -Uri $url -OutFile (Join-Path $target $file) -ErrorAction Stop
         } catch {

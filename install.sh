@@ -167,8 +167,9 @@ do_install() {
 
     # 根据语言选择 skill 目录
     local skill_dir="planify"
+    local skill_subdir=""
     if ! is_chinese_language; then
-        skill_dir="planify-en"
+        skill_subdir="en/"
     fi
 
     echo ""
@@ -183,7 +184,7 @@ do_install() {
 
     for file in SKILL.md example.md planify-template.md; do
         printf "  $(get_text "downloading") %s...\n" "$file"
-        curl -sSL "https://raw.githubusercontent.com/${REPO}/${BRANCH}/.claude/skills/${skill_dir}/${file}" -o "$target/$file"
+        curl -sSL "https://raw.githubusercontent.com/${REPO}/${BRANCH}/.claude/skills/${skill_dir}/${skill_subdir}${file}" -o "$target/$file"
     done
 
     if [ -f "$target/SKILL.md" ]; then
