@@ -75,6 +75,7 @@ function Get-Text {
             "usage" { return "使用方法:" }
             "usage_1" { return "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式" }
             "usage_2" { return "  /planify               - 交互式选择要升级的 skill" }
+            "usage_3" { return "  /planify <prompt>      - 直接跟提示词" }
         }
     } else {
         switch ($Key) {
@@ -102,6 +103,7 @@ function Get-Text {
             "usage" { return "Usage:" }
             "usage_1" { return "  /planify <skill-name>  - Upgrade a skill to plan-driven mode" }
             "usage_2" { return "  /planify               - Interactive skill selection" }
+            "usage_3" { return "  /planify <prompt>      - Use with a prompt directly" }
         }
     }
 }
@@ -457,6 +459,7 @@ try {
     Write-Host "$(Get-Text "usage")" -ForegroundColor Cyan
     Write-Host "$(Get-Text "usage_1")"
     Write-Host "$(Get-Text "usage_2")"
+    Write-Host "$(Get-Text "usage_3")"
     Write-Host ""
 } finally {
     # 确保退出时显示光标

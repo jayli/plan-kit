@@ -1,6 +1,6 @@
 ---
-name: planify
-description: Detect and upgrade a skill to plan file-driven mode. Usage: /planify <skill-name>
+name: planify-en
+description: Detect and upgrade a skill to plan file-driven mode. Usage: /planify-en <skill-name>
 argument-hint: "<skill-name>"
 user-invocable: true
 ---
@@ -33,7 +33,8 @@ You must strictly follow the workflow below. NEVER maintain task state from memo
 
 1. Analyze user input to determine if a <skill-name> to upgrade was provided
 2. If <skill-name> is provided, proceed to Phase B
-3. If no <skill-name> is provided, first get a list of project skills that are not using plan file-driven mode, then use the AskUserQuestion tool to show an interactive selection menu to the user in the correct format:
+3. If the provided <skill-name> is a prompt task, bring the task into Phase B.
+4. If no <skill-name> is provided and no other instructions are given, first get a list of project skills that are not using plan file-driven mode, then use the AskUserQuestion tool to show an interactive selection menu to the user in the correct format:
 ```json
 {
   "questions": [
@@ -56,11 +57,11 @@ You must strictly follow the workflow below. NEVER maintain task state from memo
 }
 ```
 
+
 #### Phase B: Initialize (if `.claude.plan.md` does not exist)
 
-1. Analyze the user's input requirements. First determine if the user provided a <skill-name>
-2. If no <skill-name> was provided, then
-3. Break down into specific, executable atomic task steps.
+1. Analyze the user's input requirements. First determine if the user provided a <skill-name>. If <skill-name> is provided, start the transformation for that <skill-name>.
+2. If what was provided is not a <skill-name> but a prompt task, bring this task into the following process, i.e., break down the task into specific, executable atomic task steps.
 4. Create `.claude.plan.md`, write the task list based on requirements, all tasks start with status `[ ]`.
 5. **Stop**, begin directly in automation mode.
 
@@ -81,12 +82,13 @@ You must strictly follow the workflow below. NEVER maintain task state from memo
      - Append a brief record and result of this operation to the "Execution Log" section (accurate to the minute).
    - Save the file.
 6. **Decision**:
-   - If successful and there are more tasks: **automatically continue** to execute the next `[ ]` task until complete or reaching the maximum step limit for a single conversation.
+   - If successful and there are more tasks: automatically continue to execute the next `[ ]` task until complete or reaching the maximum step limit for a single conversation.
    - It is usually recommended to pause after completing each task to let the user confirm.
 
 ### Phase D: Clean Up Context
 
 1. **Clean Up**: When the task finally ends (note: ends, not interrupted), tell the AI to forget the context for subsequent conversations. Provide the prompt: "Task complete".
+
 
 ### Constraints and Best Practices
 
@@ -143,6 +145,7 @@ Read the transformed SKILL.md and confirm:
 - Event-driven mechanism has been correctly added
 - Original functionality has not been damaged
 - Format is correct, structure is clear
+
 
 ### Task 7: Add `.claude.plan.md` to `.gitignore` file
 

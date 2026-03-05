@@ -72,6 +72,7 @@ get_text() {
             "usage") echo "使用方法:" ;;
             "usage_1") echo "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式" ;;
             "usage_2") echo "  /planify               - 交互式选择要升级的 skill" ;;
+            "usage_3") echo "  /planify <prompt>      - 直接跟提示词" ;;
         esac
     else
         case "$key" in
@@ -96,6 +97,7 @@ get_text() {
             "usage") echo "Usage:" ;;
             "usage_1") echo "  /planify <skill-name>  - Upgrade a skill to plan-driven mode" ;;
             "usage_2") echo "  /planify               - Interactive skill selection" ;;
+            "usage_3") echo "  /planify <prompt>      - Use with a prompt directly" ;;
         esac
     fi
 }
@@ -402,4 +404,5 @@ echo ""
 printf "${BOLD}$(get_text "usage")${NC}\n"
 echo "$(get_text "usage_1")"
 echo "$(get_text "usage_2")"
+echo "$(get_text "usage_3")"
 echo ""

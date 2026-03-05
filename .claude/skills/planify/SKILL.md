@@ -31,7 +31,8 @@ user-invocable: true
 
 1. 分析用户输入，判断用户有没有传入要升级的<skill-name>
 2. 如果有传入 <skill-name>，则执行阶段 B
-3. 如果没有传入 <skill-name>，则先获得项目 skill 中没有使用 plan 文件驱动的 skill 列表，然后使用 AskUserQuestion 工具向用户展示交互式选择菜单，正确的格式如下：
+3. 如果传入的 <skill-name> 是一个提示词任务，则按照将任务带入阶段 B。
+4. 如果没有传入 <skill-name>，也没有给其他任何指令，则先获得项目 skill 中没有使用 plan 文件驱动的 skill 列表，然后使用 AskUserQuestion 工具向用户展示交互式选择菜单，正确的格式如下：
 ```json
 {
   "questions": [
@@ -57,9 +58,8 @@ user-invocable: true
 
 #### 阶段 B: 初始化 (如果 `.claude.plan.md` 不存在)
 
-1. 分析用户输入的需求。首先判断用户有没有传入<skill-name>
-2. 如果没有传入 <skill-name>，则
-3. 拆解为具体的、可执行的原子任务步骤。
+1. 分析用户输入的需求。首先判断用户有没有传入<skill-name>，传入<skill-name>则开启针对<skill-name> 的改造。
+2. 如果传入的不是 <skill-name>，而是一个提示词任务，则带入这个任务，进入接下来流程，即将任务拆解为具体的、可执行的原子任务步骤。
 4. 创建 `.claude.plan.md`，根据需求写入任务列表，所有任务初始状态为 `[ ]`。
 5. **停止**，自动化模式下直接开始。
 

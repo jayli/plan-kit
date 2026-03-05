@@ -1,14 +1,24 @@
 # Plan-Kit (Planify)
 
-> Transform your Skills into a plan file-driven automation execution mode for more robust task execution
+## What and why
 
-Planify is a Skill that adds plan file-based task state management to other Skills, enabling automated breakdown, execution, and tracking of complex tasks.
+A simple implementation of the **PLAN-and-Execute mode driven by the Plan file**.
 
-## ✨ Features
+- Upgrade your Skills into a plan file-driven execution mode for more robust task execution
+- Run the prompt text directly in PLAN-and-Execute mode. Enabling automated tracking of complex tasks.
+
+### Comparison
+
+- **Difference from plan mode**: Planify is simpler and more straightforward, no need to switch between modes, and can robustness-upgrade existing skills.
+- **Difference from common prompts**: File-based persistence, suitable for long and complex tasks, easier to resume from interruptions.
+
+Therefore, planify is better suited for complex skills and long tasks. If you need to repeatedly discuss and clarify the plan, please use plan mode.
+
+### ✨ Features
 
 - Task visualization
 - Execution automation
-- Super fault tolerance
+- Extremely high fault tolerance
 
 ## 🚀 Quick Install
 
@@ -42,6 +52,9 @@ bash <(curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.s
 /planify report
 
 # Then, when using /report, it is based on the plan-file-driven mode
+
+# OR use the prompt words directly
+/planify What's the weather like today? What should I wear
 ```
 
 If the conversation is interrupted, you can continue with:
