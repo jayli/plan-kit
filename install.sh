@@ -187,6 +187,15 @@ do_install() {
         curl -sSL "https://raw.githubusercontent.com/${REPO}/${BRANCH}/.claude/skills/${skill_dir}/${skill_subdir}${file}" -o "$target/$file"
     done
 
+    # 创建 settings.json 配置文件
+    local rel_target="$cfg_dir/skills/planify"
+    cat > "$target/settings.json" << EOF
+{
+  "skill_dir": "${rel_target}/"
+}
+EOF
+    printf "  Creating settings.json...\n"
+
     if [ -f "$target/SKILL.md" ]; then
         printf "${GREEN}  $(get_text "install_success")${NC}\n"
         printf "     $(get_text "location")：%s\n" "$target"

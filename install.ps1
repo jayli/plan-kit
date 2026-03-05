@@ -192,7 +192,16 @@ function Do-Install {
         }
     }
 
-    if (Test-Path (Join-Path $target "SKILL.md"))) {
+    # 创建 settings.json 配置文件
+    Write-Host "  Creating settings.json..."
+    $settingsContent = @"
+{
+  "skill_dir": "${cfgDir}/skills/planify/"
+}
+"@
+    Set-Content -Path (Join-Path $target "settings.json") -Value $settingsContent
+
+    if (Test-Path (Join-Path $target "SKILL.md")) {
         Write-Host "  $(Get-Text "install_success")" -ForegroundColor Green
         Write-Host "     $(Get-Text "location"): $target"
     } else {
