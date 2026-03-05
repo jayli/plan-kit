@@ -149,7 +149,31 @@ function Show-InteractiveMenu {
                 Write-Host "[ ] " -NoNewline
             }
 
-            Write-Host $item
+            # 检查是否是退出选项
+            if ($i -eq $ORDERED_INDICES.Count) {
+                Write-Host $item
+            } elseif ($i -lt $ORDERED_INDICES.Count) {
+                $original_idx = $ORDERED_INDICES[$i]
+                $dir = $TOOL_DIRS[$original_idx]
+                $status = $TOOL_STATUSES[$original_idx]
+                $cfg = $ALL_CONFIG_DIRS[$original_idx]
+                $tn = Get-ToolName -dir $cfg
+
+                if ($dir -ne "") {
+                    Write-Host "$tn  " -NoNewline
+                    Write-Host $dir -ForegroundColor Gray -NoNewline
+                    if ($status -eq "installed") {
+                        Write-Host "  " -NoNewline
+                        Write-Host "[已安装]" -ForegroundColor DarkGreen
+                    } else {
+                        Write-Host ""
+                    }
+                } else {
+                    Write-Host "$tn  ($cfg - 未配置)" -ForegroundColor Gray
+                }
+            } else {
+                Write-Host $item
+            }
         }
         Write-Host ""
     }
@@ -215,71 +239,124 @@ Write-Host ""
 
 $FOUND_DIRS = Find-ProjectConfigs
 
-if ($FOUND_DIRS.Count -gt 0) {
-    # 找到配置目录
-    Write-Host "检测到以下 AI 工具已配置：" -ForegroundColor Green
-    Write-Host ""
+# 为每个工具类型找到最近的配置目录
+$TOOL_DIRS = @()  # 按工具顺序存储目录路径（或空字符串）
+$TOOL_STATUSES = @()  # 按工具顺序存储安装状态
+$TOOL_HAS_DIR = @()  # 按工具顺序存储是否有配置目录
 
-    # 构建菜单项
-    $MENU_ITEMS = @()
+foreach ($cfg in $ALL_CONFIG_DIRS) {
+    $foundDir = ""
+    # 从 FOUND_DIRS 中查找该工具类型的第一个（最近的）目录
     foreach ($dir in $FOUND_DIRS) {
         $dn = Split-Path $dir -Leaf
-        $tn = Get-ToolName -dir $dn
-        if (Is-Installed -cfgDir $dir) {
+        if ($dn -eq $cfg) {
+            $foundDir = $dir
+            break
+        }
+    }
+    $TOOL_DIRS += $foundDir
+    if ($foundDir -ne "" -and (Is-Installed -cfgDir $foundDir)) {
+        $TOOL_STATUSES += "installed"
+        $TOOL_HAS_DIR += "has_dir"
+    } elseif ($foundDir -ne "") {
+        $TOOL_STATUSES += "not_installed"
+        $TOOL_HAS_DIR += "has_dir"
+    } else {
+        $TOOL_STATUSES += "not_installed"
+        $TOOL_HAS_DIR += "no_dir"
+    }
+}
+
+# 构建菜单项（先已安装，再有目录未安装，最后未配置）
+$MENU_ITEMS = @()
+$ORDERED_INDICES = @()
+
+# 第一组：已安装的
+for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
+    if ($TOOL_STATUSES[$i] -eq "installed") {
+        $ORDERED_INDICES += $i
+    }
+}
+
+# 第二组：有目录但未安装的
+for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
+    if ($TOOL_HAS_DIR[$i] -eq "has_dir" -and $TOOL_STATUSES[$i] -ne "installed") {
+        $ORDERED_INDICES += $i
+    }
+}
+
+# 第三组：未配置的
+for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
+    if ($TOOL_HAS_DIR[$i] -eq "no_dir") {
+        $ORDERED_INDICES += $i
+    }
+}
+
+# 按顺序构建菜单项（简单字符串数组，实际颜色在 Draw-Menu 中处理）
+$MENU_ITEMS = @()
+
+foreach ($i in $ORDERED_INDICES) {
+    $cfg = $ALL_CONFIG_DIRS[$i]
+    $tn = Get-ToolName -dir $cfg
+    $dir = $TOOL_DIRS[$i]
+    $status = $TOOL_STATUSES[$i]
+
+    if ($dir -ne "") {
+        if ($status -eq "installed") {
             $MENU_ITEMS += "$tn  $dir  [已安装]"
         } else {
             $MENU_ITEMS += "$tn  $dir"
         }
-    }
-
-    # 显示交互式菜单
-    $selectedIndices = @()
-    if (Show-InteractiveMenu -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
-        # 安装到选中的目录
-        $idx = $selectedIndices[0]
-        Do-Install -cfgDir $FOUND_DIRS[$idx]
     } else {
+        $MENU_ITEMS += "$tn  ($cfg - 未配置)"
+    }
+}
+
+# 添加退出选项
+$MENU_ITEMS += "退出安装程序"
+
+# 添加退出选项
+$MENU_ITEMS += "退出安装程序"
+
+Write-Host "所有支持的 AI 工具：" -ForegroundColor Green
+Write-Host ""
+
+# 显示交互式菜单（单选）
+$selectedIndices = @()
+if (Show-InteractiveMenu -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
+    $idx = $selectedIndices[0]
+
+    # 检查是否选择了退出选项
+    if ($idx -eq $ORDERED_INDICES.Count) {
         Write-Host "安装已取消" -ForegroundColor Red
         exit 0
     }
 
-} else {
-    # 未找到配置目录
-    Write-Host "⚠️  当前项目未检测到任何 AI 工具配置目录" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "这表示当前项目尚未被任何 AI 工具初始化。"
-    Write-Host ""
+    $original_idx = $ORDERED_INDICES[$idx]
+    $cfg = $ALL_CONFIG_DIRS[$original_idx]
+    $dir = $TOOL_DIRS[$original_idx]
 
-    # 构建菜单项
-    $MENU_ITEMS = @()
-    foreach ($cfg in $ALL_CONFIG_DIRS) {
-        $tn = Get-ToolName -dir $cfg
-        $MENU_ITEMS += "$tn  ($cfg)"
-    }
-
-    Write-Host "请选择要创建的配置目录：" -ForegroundColor Cyan
-    Write-Host ""
-
-    # 显示交互式菜单（单选）
-    $selectedIndex = @()
-    if (Show-InteractiveMenu -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndex)) {
-        $idx = $selectedIndex[0]
-        $SELECTED_CONFIG = $ALL_CONFIG_DIRS[$idx]
-
+    if ($dir -ne "") {
+        # 已有配置目录，直接安装
+        Do-Install -cfgDir $dir
+    } else {
+        # 没有配置目录，需要创建
         Write-Host ""
-        $response = Read-Host "是否在当前目录创建 $SELECTED_CONFIG/skills/ 目录？[y/N]"
+        Write-Host "⚠️  $cfg 尚未配置" -ForegroundColor Yellow
+        Write-Host ""
+        $response = Read-Host "是否在当前目录创建 $cfg/skills/ 目录？[y/N]"
         Write-Host ""
 
         if ($response -match '^[Yy]$') {
-            Do-Install -cfgDir (Join-Path (Get-Location) $SELECTED_CONFIG)
+            Do-Install -cfgDir (Join-Path (Get-Location) $cfg)
         } else {
             Write-Host "安装已取消" -ForegroundColor Red
             exit 0
         }
-    } else {
-        Write-Host "安装已取消" -ForegroundColor Red
-        exit 0
     }
+} else {
+    Write-Host "安装已取消" -ForegroundColor Red
+    exit 0
 }
 
 Write-Host ""

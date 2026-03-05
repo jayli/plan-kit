@@ -15,6 +15,7 @@ BRANCH="${PLAN_KIT_BRANCH:-main}"
 
 # 颜色输出
 GREEN="\033[32m"
+DARK_GREEN="\033[38;5;28m"
 RED="\033[31m"
 YELLOW="\033[33m"
 CYAN="\033[36m"
@@ -190,72 +191,119 @@ echo ""
 
 FOUND_DIRS="$(find_project_configs)"
 
-if [ -n "$FOUND_DIRS" ]; then
-    # 找到配置目录
-    printf "${GREEN}检测到以下 AI 工具已配置：${NC}\n"
-    echo ""
+# 为每个工具类型找到最近的配置目录
+declare -a TOOL_DIRS   # 按工具顺序存储目录路径（或空字符串）
+declare -a TOOL_STATUSES  # 按工具顺序存储安装状态
+declare -a TOOL_HAS_DIR  # 按工具顺序存储是否有配置目录
 
-    # 将目录转换为数组并构建菜单项
+for cfg in "${ALL_CONFIG_DIRS[@]}"; do
+    found_dir=""
+    # 从 FOUND_DIRS 中查找该工具类型的第一个（最近的）目录
     IFS='|' read -ra DIRS_ARR <<< "$FOUND_DIRS"
-    MENU_ITEMS=()
     for dir in "${DIRS_ARR[@]}"; do
         [ -z "$dir" ] && continue
         dn="$(basename "$dir")"
-        tn="$(get_tool_name "$dn")"
-        if is_installed "$dir"; then
-            MENU_ITEMS+=("$tn  ${GRAY}$dir${NC}  ${GREEN}[已安装]${NC}")
+        if [ "$dn" = "$cfg" ]; then
+            found_dir="$dir"
+            break
+        fi
+    done
+    TOOL_DIRS+=("$found_dir")
+    if [ -n "$found_dir" ] && is_installed "$found_dir"; then
+        TOOL_STATUSES+=("installed")
+        TOOL_HAS_DIR+=("has_dir")
+    elif [ -n "$found_dir" ]; then
+        TOOL_STATUSES+=("not_installed")
+        TOOL_HAS_DIR+=("has_dir")
+    else
+        TOOL_STATUSES+=("not_installed")
+        TOOL_HAS_DIR+=("no_dir")
+    fi
+done
+
+# 构建菜单项（先已安装，再有目录未安装，最后未配置）
+MENU_ITEMS=()
+ORDERED_INDICES=()
+
+# 第一组：已安装的
+for i in "${!ALL_CONFIG_DIRS[@]}"; do
+    if [ "${TOOL_STATUSES[$i]}" = "installed" ]; then
+        ORDERED_INDICES+=("$i")
+    fi
+done
+
+# 第二组：有目录但未安装的
+for i in "${!ALL_CONFIG_DIRS[@]}"; do
+    if [ "${TOOL_HAS_DIR[$i]}" = "has_dir" ] && [ "${TOOL_STATUSES[$i]}" != "installed" ]; then
+        ORDERED_INDICES+=("$i")
+    fi
+done
+
+# 第三组：未配置的
+for i in "${!ALL_CONFIG_DIRS[@]}"; do
+    if [ "${TOOL_HAS_DIR[$i]}" = "no_dir" ]; then
+        ORDERED_INDICES+=("$i")
+    fi
+done
+
+# 按顺序构建菜单项
+for i in "${ORDERED_INDICES[@]}"; do
+    cfg="${ALL_CONFIG_DIRS[$i]}"
+    tn="$(get_tool_name "$cfg")"
+    dir="${TOOL_DIRS[$i]}"
+    status="${TOOL_STATUSES[$i]}"
+
+    if [ -n "$dir" ]; then
+        if [ "$status" = "installed" ]; then
+            MENU_ITEMS+=("$tn  ${GRAY}$dir${NC}  ${DARK_GREEN}[已安装]${NC}")
         else
             MENU_ITEMS+=("$tn  ${GRAY}$dir${NC}")
         fi
-    done
-
-    # 显示交互式菜单（单选）
-    RESULT_INDICES=()
-    interactive_menu "请选择要安装/升级的工具" "false" "${MENU_ITEMS[@]}"
-
-    if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
-        printf "\n${RED}安装已取消${NC}\n"
-        exit 0
+    else
+        MENU_ITEMS+=("$tn  ${GRAY}($cfg - 未配置)${NC}")
     fi
+done
 
-    # 安装到选中的目录
-    idx="${RESULT_INDICES[0]}"
-    do_install "${DIRS_ARR[$idx]}"
+# 添加退出选项
+MENU_ITEMS+=("退出安装程序")
 
+printf "${GREEN}所有支持的 AI 工具：${NC}\n"
+echo ""
+
+# 显示交互式菜单（单选）
+RESULT_INDICES=()
+interactive_menu "请选择要安装/升级的工具" "false" "${MENU_ITEMS[@]}"
+
+if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
+    printf "\n${RED}安装已取消${NC}\n"
+    exit 0
+fi
+
+idx="${RESULT_INDICES[0]}"
+
+# 检查是否选择了退出选项
+if [ "$idx" -eq "${#ORDERED_INDICES[@]}" ]; then
+    printf "\n${RED}安装已取消${NC}\n"
+    exit 0
+fi
+
+original_idx="${ORDERED_INDICES[$idx]}"
+cfg="${ALL_CONFIG_DIRS[$original_idx]}"
+dir="${TOOL_DIRS[$original_idx]}"
+
+if [ -n "$dir" ]; then
+    # 已有配置目录，直接安装
+    do_install "$dir"
 else
-    # 未找到配置目录
-    printf "${YELLOW}⚠️  当前项目未检测到任何 AI 工具配置目录${NC}\n"
+    # 没有配置目录，需要创建
     echo ""
-    echo "这表示当前项目尚未被任何 AI 工具初始化。"
+    printf "${YELLOW}⚠️  $cfg 尚未配置${NC}\n"
     echo ""
-
-    # 构建菜单项
-    MENU_ITEMS=()
-    for cfg in "${ALL_CONFIG_DIRS[@]}"; do
-        tn="$(get_tool_name "$cfg")"
-        MENU_ITEMS+=("$tn  ${GRAY}($cfg)${NC}")
-    done
-
-    printf "${CYAN}请选择要创建的配置目录：${NC}\n"
-
-    # 显示交互式菜单（单选）
-    RESULT_INDICES=()
-    interactive_menu "请选择配置目录类型" "false" "${MENU_ITEMS[@]}"
-
-    if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
-        printf "\n${RED}安装已取消${NC}\n"
-        exit 0
-    fi
-
-    idx="${RESULT_INDICES[0]}"
-    SELECTED_CONFIG="${ALL_CONFIG_DIRS[$idx]}"
-
-    echo ""
-    read -p "是否在当前目录创建 $SELECTED_CONFIG/skills/ 目录？[y/N] " -n 1 -r
+    read -p "是否在当前目录创建 $cfg/skills/ 目录？[y/N] " -n 1 -r
     echo ""
 
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        do_install "$(pwd)/$SELECTED_CONFIG"
+        do_install "$(pwd)/$cfg"
     else
         printf "${RED}安装已取消${NC}\n"
         exit 0
