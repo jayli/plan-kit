@@ -9,6 +9,9 @@
 
 set -e
 
+# 确保退出时显示光标
+trap 'printf "\033[?25h"' EXIT
+
 # 仓库信息
 REPO="jayli/plan-kit"
 BRANCH="${PLAN_KIT_BRANCH:-main}"

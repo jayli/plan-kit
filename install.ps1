@@ -113,6 +113,7 @@ function Do-Install {
         Write-Host "     位置：$target"
     } else {
         Write-Host "  ❌ 安装失败" -ForegroundColor Red
+        $host.UI.RawCursorVisible = $true
         exit 1
     }
 }
@@ -239,19 +240,20 @@ function Show-InteractiveMenu {
 
 # ============ 主逻辑 ============
 
-Clear-Host
+try {
+    Clear-Host
 
-Write-Host ""
-Write-Host "█▀▀█ █░░░ █▀▀█ █▀▀▄ ▀█▀ █▀▀▀ █░░█"
-Write-Host "█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█"
-Write-Host "▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀"
-Write-Host ""
-Write-Host "Planify Skill 安装程序" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "正在检测当前项目的 AI 工具配置目录..."
-Write-Host ""
+    Write-Host ""
+    Write-Host "█▀▀█ █░░░ █▀▀█ █▀▀▄ ▀█▀ █▀▀▀ █░░█"
+    Write-Host "█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█"
+    Write-Host "▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀"
+    Write-Host ""
+    Write-Host "Planify Skill 安装程序" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "正在检测当前项目的 AI 工具配置目录..."
+    Write-Host ""
 
-$FOUND_DIRS = Find-ProjectConfigs
+    $FOUND_DIRS = Find-ProjectConfigs
 
 # 为每个工具类型找到最近的配置目录
 $TOOL_DIRS = @()  # 按工具顺序存储目录路径（或空字符串）
@@ -337,6 +339,7 @@ if (Show-InteractiveMenu -Title "请选择要安装/升级的工具" -Items $MEN
     # 检查是否选择了退出选项
     if ($idx -eq $ORDERED_INDICES.Count) {
         Write-Host "安装已取消" -ForegroundColor Red
+        $host.UI.RawCursorVisible = $true
         exit 0
     }
 
@@ -359,11 +362,13 @@ if (Show-InteractiveMenu -Title "请选择要安装/升级的工具" -Items $MEN
             Do-Install -cfgDir (Join-Path (Get-Location) $cfg)
         } else {
             Write-Host "安装已取消" -ForegroundColor Red
+            $host.UI.RawCursorVisible = $true
             exit 0
         }
     }
 } else {
     Write-Host "安装已取消" -ForegroundColor Red
+    $host.UI.RawCursorVisible = $true
     exit 0
 }
 
@@ -372,3 +377,9 @@ Write-Host "使用方法:" -ForegroundColor Cyan
 Write-Host "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式"
 Write-Host "  /planify               - 交互式选择要升级的 skill"
 Write-Host ""
+} finally {
+    # 确保退出时显示光标
+    try {
+        $host.UI.RawCursorVisible = $true
+    } catch {}
+}

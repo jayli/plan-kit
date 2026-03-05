@@ -1,22 +1,16 @@
-```
-█▀▀█ █░░░ █▀▀█ █▀▀▄ ▀█▀ █▀▀▀ █░░█
-█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█
-▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀
-```
+# Plan-Kit (Planify)
 
-# Plan-Kit（Planify）
+> Transform your Skills into a plan file-driven automation execution mode for more robust task execution
 
-> 将你的 Skills 改造为基于计划文件驱动的自动化执行模式，让任务执行更稳健
+Planify is a Skill that adds plan file-based task state management to other Skills, enabling automated breakdown, execution, and tracking of complex tasks.
 
-Planify 是一个 Skill，为其他 Skills 添加基于计划文件的任务状态管理机制，实现复杂任务的自动化拆解、执行和追踪。
+## ✨ Features
 
-## ✨ 特性
+- Task visualization
+- Execution automation
+- Super fault tolerance
 
-- 任务可视化
-- 执行自动化
-- 超强容错
-
-## 🚀 快速安装
+## 🚀 Quick Install
 
 ### Linux / macOS
 
@@ -36,19 +30,19 @@ iwr https://raw.githubusercontent.com/jayli/plan-kit/main/install.ps1 -useb | ie
 bash <(curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.sh)
 ```
 
-## 📖 使用方法
+## 📖 Usage
 
-### 基本用法
+### Basic Usage
 
 ```bash
-# 升级指定 skill 为 plan 驱动模式
+# Upgrade a skill to plan-driven mode
 /planify <skill-name>
 
-# 例如：升级名为 report 的 skill
+# Example: upgrade the skill named report
 /planify report
 ```
 
-如果对话中断，可以使用以下指令继续：
+If the conversation is interrupted, you can continue with:
 
 ```
 继续
@@ -56,65 +50,46 @@ go on
 go ahead
 ```
 
-## 📁 文件结构
+## 📁 File Structure
 
 ```
 .claude/
 └── skills/
     └── planify/
-        ├── SKILL.md              # Skill 主定义文件
-        ├── example.md            # 改造后的 Skill 示例
-        └── planify-template.md   # Plan 驱动模板
+        ├── SKILL.md              # Main Skill definition
+        ├── example.md            # Example of a transformed Skill
+        └── planify-template.md   # Plan-driven template
 ```
 
-### .claude.plan.md 示例
+### .claude.plan.md Example
 
 ```markdown
-# 任务计划
+# Task Plan
 
-## 目标
-将 report skill 改造为 plan 驱动模式
+## Goal
+Transform the report skill to plan-driven mode
 
-## 任务列表
+## Task List
 
-- [x] 检查目标 skill 是否存在
-- [x] 读取目标 skill 的 SKILL.md 文件
-- [ ] 判断是否已经是 plan 驱动
-- [ ] 读取 planify-template.md 模板
-- [ ] 改造目标 skill 的 SKILL.md
-- [ ] 验证改造结果
+- [x] Check if target skill exists
+- [x] Read target skill's SKILL.md file
+- [ ] Verify transformation result
 
-## 执行日志
+## Execution Log
 
-2024-01-01 10:00 - 开始执行任务 1: 检查目标 skill 是否存在 ✅
-2024-01-01 10:01 - 完成任务 2: 读取 SKILL.md 文件 ✅
+2024-01-01 10:00 - Started task 1: Check if target skill exists ✅
+2024-01-01 10:01 - Completed task 2: Read SKILL.md file ✅
 ```
 
-### 自动将 .claude.plan.md 加入忽略列表
+### Automatically adding `.claude.plan.md` to ignore list
 
-任务会生成 `.claude.plan.md`，会自动添加到 `.gitignore` 中
-
-## 📝 工作原理
-
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│  用户指令   │ ──► │   Planify    │ ──► │  创建计划  │
-│  /planify   │     │   解析器     │     │  .claude   │
-└─────────────┘     └──────────────┘     │  .plan.md  │
-                                          └─────────────┘
-                                                 │
-                                                 ▼
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│  清理上下文 │ ◄── │   更新状态   │ ◄── │   执行任务  │
-│   完成！    │     │  写入文件    │     │   原子操作  │
-└─────────────┘     └──────────────┘     └─────────────┘
-```
+The task generates `.claude.plan.md`, which is automatically added to `.gitignore`.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License
 
-## 🔗 相关链接
+## 🔗 Links
 
-- [GitHub 仓库](https://github.com/jayli/plan-kit)
-- [报告问题](https://github.com/jayli/plan-kit/issues)
+- [GitHub Repository](https://github.com/jayli/plan-kit)
+- [Report Issues](https://github.com/jayli/plan-kit/issues)
