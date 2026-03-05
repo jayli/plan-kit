@@ -207,13 +207,8 @@ interactive_menu() {
 }
 
 # 核心：确保从终端读取输入
-# 检查 /dev/tty 是否可用，如果不可用则尝试 /dev/console 或直接使用 stdin
-if [ -e /dev/tty ]; then
-    exec < /dev/tty
-elif [ -e /dev/console ]; then
-    exec < /dev/console
-fi
-# 如果都没有，就使用默认 stdin（可能是管道，但脚本仍能执行非交互部分）
+# 此脚本必须在交互环境下运行
+exec < /dev/tty
 
 # ============ 主逻辑 ============
 
