@@ -31,6 +31,81 @@ function Get-ToolName {
     return $TOOL_NAMES[$dir] ?? $dir
 }
 
+# 判断是否为中文环境
+function Test-ChineseLanguage {
+    # 检查 $PSUICulture
+    if ($PSUICulture -like "zh-*") {
+        return $true
+    }
+    # 检查 Get-UICulture
+    $culture = Get-UICulture
+    if ($culture.Name -like "zh-*") {
+        return $true
+    }
+    return $false
+}
+
+# 根据语言获取文本
+function Get-Text {
+    param([string]$Key)
+
+    if (Test-ChineseLanguage) {
+        switch ($Key) {
+            "installer_title" { return "Planify Skill 安装程序" }
+            "detecting_config" { return "正在检测当前项目的 AI 工具配置目录..." }
+            "menu_title" { return "请选择要安装/升级的工具" }
+            "menu_hint_select" { return "使用 ↑↓ 选择，Enter 确认" }
+            "menu_hint_multi" { return "使用 ↑↓ 选择，空格 选中/取消，Enter 确认" }
+            "menu_hint_cancel" { return "输入 0 取消安装" }
+            "installed" { return "[已安装]" }
+            "not_configured" { return "未配置" }
+            "exit_installer" { return "退出安装程序" }
+            "install_cancelled" { return "安装已取消" }
+            "detected_installed" { return "检测到已安装的 planify skill" }
+            "upgrading" { return "即将升级到最新版本..." }
+            "starting_install" { return "开始安装 planify skill..." }
+            "downloading" { return "下载" }
+            "download_failed" { return "下载失败" }
+            "install_success" { return "✅ 安装成功！" }
+            "location" { return "位置" }
+            "install_failed" { return "❌ 安装失败" }
+            "not_configured_warning" { return "⚠️  尚未配置" }
+            "create_dir_prompt" { return "是否在当前目录创建" }
+            "create_dir_suffix" { return "/skills/ 目录？[y/N]" }
+            "usage" { return "使用方法:" }
+            "usage_1" { return "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式" }
+            "usage_2" { return "  /planify               - 交互式选择要升级的 skill" }
+        }
+    } else {
+        switch ($Key) {
+            "installer_title" { return "Planify Skill Installer" }
+            "detecting_config" { return "Detecting AI tool config directories..." }
+            "menu_title" { return "Select tool to install/upgrade" }
+            "menu_hint_select" { return "Use ↑↓ to select, Enter to confirm" }
+            "menu_hint_multi" { return "Use ↑↓ to select, Space to toggle, Enter to confirm" }
+            "menu_hint_cancel" { return "Press 0 to cancel" }
+            "installed" { return "[installed]" }
+            "not_configured" { return "not configured" }
+            "exit_installer" { return "Exit installer" }
+            "install_cancelled" { return "Installation cancelled" }
+            "detected_installed" { return "Existing planify skill detected" }
+            "upgrading" { return "Upgrading to latest version..." }
+            "starting_install" { return "Starting planify skill installation..." }
+            "downloading" { return "Downloading" }
+            "download_failed" { return "Download failed" }
+            "install_success" { return "✅ Installation successful!" }
+            "location" { return "Location" }
+            "install_failed" { return "❌ Installation failed" }
+            "not_configured_warning" { return "⚠️  Not configured" }
+            "create_dir_prompt" { return "Create" }
+            "create_dir_suffix" { return "/skills/ directory? [y/N]" }
+            "usage" { return "Usage:" }
+            "usage_1" { return "  /planify <skill-name>  - Upgrade a skill to plan-driven mode" }
+            "usage_2" { return "  /planify               - Interactive skill selection" }
+        }
+    }
+}
+
 # 查找项目中的配置目录
 function Find-ProjectConfigs {
     $currentDir = Get-Location
@@ -82,12 +157,18 @@ function Do-Install {
     $toolName = Get-ToolName -dir $cfgName
     $target = Join-Path $cfgDir "skills/planify"
 
+    # 根据语言选择 skill 目录
+    $skillDir = "planify"
+    if (-not (Test-ChineseLanguage)) {
+        $skillDir = "planify-en"
+    }
+
     Write-Host ""
     if (Is-Installed -cfgDir $cfgDir) {
-        Write-Host "[$toolName] 检测到已安装的 planify skill" -ForegroundColor Yellow
-        Write-Host "即将升级到最新版本..."
+        Write-Host "[$toolName] $(Get-Text "detected_installed")" -ForegroundColor Yellow
+        Write-Host "$(Get-Text "upgrading")"
     } else {
-        Write-Host "[$toolName] 开始安装 planify skill..." -ForegroundColor Cyan
+        Write-Host "[$toolName] $(Get-Text "starting_install")" -ForegroundColor Cyan
     }
 
     if (-not (Test-Path (Join-Path $cfgDir "skills"))) {
@@ -98,21 +179,21 @@ function Do-Install {
     $FILES = @("SKILL.md", "example.md", "planify-template.md")
 
     foreach ($file in $FILES) {
-        Write-Host "  下载 $file..."
-        $url = "https://raw.githubusercontent.com/$REPO/$BRANCH/$cfgName/skills/planify/$file"
+        Write-Host "  $(Get-Text "downloading") $file..."
+        $url = "https://raw.githubusercontent.com/$REPO/$BRANCH/.claude/skills/$skillDir/$file"
         try {
             Invoke-RestMethod -Uri $url -OutFile (Join-Path $target $file) -ErrorAction Stop
         } catch {
-            Write-Host "  下载失败：$_" -ForegroundColor Red
+            Write-Host "  $(Get-Text "download_failed"): $_" -ForegroundColor Red
             continue
         }
     }
 
-    if (Test-Path (Join-Path $target "SKILL.md")) {
-        Write-Host "  ✅ 安装成功！" -ForegroundColor Green
-        Write-Host "     位置：$target"
+    if (Test-Path (Join-Path $target "SKILL.md"))) {
+        Write-Host "  $(Get-Text "install_success")" -ForegroundColor Green
+        Write-Host "     $(Get-Text "location"): $target"
     } else {
-        Write-Host "  ❌ 安装失败" -ForegroundColor Red
+        Write-Host "  $(Get-Text "install_failed")" -ForegroundColor Red
         $host.UI.RawCursorVisible = $true
         exit 1
     }
@@ -137,11 +218,11 @@ function Show-InteractiveMenu {
         Write-Host ""
         Write-Host "--- $Title ---" -ForegroundColor Green
         if ($MultiSelect) {
-            Write-Host "使用 ↑↓ 选择，空格 选中/取消，Enter 确认" -ForegroundColor Gray
+            Write-Host "$(Get-Text "menu_hint_multi")" -ForegroundColor Gray
         } else {
-            Write-Host "使用 ↑↓ 选择，Enter 确认" -ForegroundColor Gray
+            Write-Host "$(Get-Text "menu_hint_select")" -ForegroundColor Gray
         }
-        Write-Host "输入 0 取消安装" -ForegroundColor Gray
+        Write-Host "$(Get-Text "menu_hint_cancel")" -ForegroundColor Gray
         Write-Host ""
 
         for ($i = 0; $i -lt $Items.Count; $i++) {
@@ -174,12 +255,12 @@ function Show-InteractiveMenu {
                     Write-Host $dir -ForegroundColor Gray -NoNewline
                     if ($status -eq "installed") {
                         Write-Host "  " -NoNewline
-                        Write-Host "[已安装]" -ForegroundColor DarkGreen
+                        Write-Host "$(Get-Text "installed")" -ForegroundColor DarkGreen
                     } else {
                         Write-Host ""
                     }
                 } else {
-                    Write-Host "$tn  ($cfg - 未配置)" -ForegroundColor Gray
+                    Write-Host "$tn  ($cfg - $(Get-Text "not_configured"))" -ForegroundColor Gray
                 }
             } else {
                 Write-Host $item
@@ -248,135 +329,135 @@ try {
     Write-Host "█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█"
     Write-Host "▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀"
     Write-Host ""
-    Write-Host "Planify Skill 安装程序" -ForegroundColor Cyan
+    Write-Host "$(Get-Text "installer_title")" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "正在检测当前项目的 AI 工具配置目录..."
+    Write-Host "$(Get-Text "detecting_config")"
     Write-Host ""
 
     $FOUND_DIRS = Find-ProjectConfigs
 
-# 为每个工具类型找到最近的配置目录
-$TOOL_DIRS = @()  # 按工具顺序存储目录路径（或空字符串）
-$TOOL_STATUSES = @()  # 按工具顺序存储安装状态
-$TOOL_HAS_DIR = @()  # 按工具顺序存储是否有配置目录
+    # 为每个工具类型找到最近的配置目录
+    $TOOL_DIRS = @()  # 按工具顺序存储目录路径（或空字符串）
+    $TOOL_STATUSES = @()  # 按工具顺序存储安装状态
+    $TOOL_HAS_DIR = @()  # 按工具顺序存储是否有配置目录
 
-foreach ($cfg in $ALL_CONFIG_DIRS) {
-    $foundDir = ""
-    # 从 FOUND_DIRS 中查找该工具类型的第一个（最近的）目录
-    foreach ($dir in $FOUND_DIRS) {
-        $dn = Split-Path $dir -Leaf
-        if ($dn -eq $cfg) {
-            $foundDir = $dir
-            break
+    foreach ($cfg in $ALL_CONFIG_DIRS) {
+        $foundDir = ""
+        # 从 FOUND_DIRS 中查找该工具类型的第一个（最近的）目录
+        foreach ($dir in $FOUND_DIRS) {
+            $dn = Split-Path $dir -Leaf
+            if ($dn -eq $cfg) {
+                $foundDir = $dir
+                break
+            }
         }
-    }
-    $TOOL_DIRS += $foundDir
-    if ($foundDir -ne "" -and (Is-Installed -cfgDir $foundDir)) {
-        $TOOL_STATUSES += "installed"
-        $TOOL_HAS_DIR += "has_dir"
-    } elseif ($foundDir -ne "") {
-        $TOOL_STATUSES += "not_installed"
-        $TOOL_HAS_DIR += "has_dir"
-    } else {
-        $TOOL_STATUSES += "not_installed"
-        $TOOL_HAS_DIR += "no_dir"
-    }
-}
-
-# 构建菜单项（先已安装，再有目录未安装，最后未配置）
-$MENU_ITEMS = @()
-$ORDERED_INDICES = @()
-
-# 第一组：已安装的
-for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
-    if ($TOOL_STATUSES[$i] -eq "installed") {
-        $ORDERED_INDICES += $i
-    }
-}
-
-# 第二组：有目录但未安装的
-for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
-    if ($TOOL_HAS_DIR[$i] -eq "has_dir" -and $TOOL_STATUSES[$i] -ne "installed") {
-        $ORDERED_INDICES += $i
-    }
-}
-
-# 第三组：未配置的
-for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
-    if ($TOOL_HAS_DIR[$i] -eq "no_dir") {
-        $ORDERED_INDICES += $i
-    }
-}
-
-# 按顺序构建菜单项（简单字符串数组，实际颜色在 Draw-Menu 中处理）
-$MENU_ITEMS = @()
-
-foreach ($i in $ORDERED_INDICES) {
-    $cfg = $ALL_CONFIG_DIRS[$i]
-    $tn = Get-ToolName -dir $cfg
-    $dir = $TOOL_DIRS[$i]
-    $status = $TOOL_STATUSES[$i]
-
-    if ($dir -ne "") {
-        if ($status -eq "installed") {
-            $MENU_ITEMS += "$tn  $dir  [已安装]"
+        $TOOL_DIRS += $foundDir
+        if ($foundDir -ne "" -and (Is-Installed -cfgDir $foundDir)) {
+            $TOOL_STATUSES += "installed"
+            $TOOL_HAS_DIR += "has_dir"
+        } elseif ($foundDir -ne "") {
+            $TOOL_STATUSES += "not_installed"
+            $TOOL_HAS_DIR += "has_dir"
         } else {
-            $MENU_ITEMS += "$tn  $dir"
+            $TOOL_STATUSES += "not_installed"
+            $TOOL_HAS_DIR += "no_dir"
+        }
+    }
+
+    # 构建菜单项（先已安装，再有目录未安装，最后未配置）
+    $MENU_ITEMS = @()
+    $ORDERED_INDICES = @()
+
+    # 第一组：已安装的
+    for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
+        if ($TOOL_STATUSES[$i] -eq "installed") {
+            $ORDERED_INDICES += $i
+        }
+    }
+
+    # 第二组：有目录但未安装的
+    for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
+        if ($TOOL_HAS_DIR[$i] -eq "has_dir" -and $TOOL_STATUSES[$i] -ne "installed") {
+            $ORDERED_INDICES += $i
+        }
+    }
+
+    # 第三组：未配置的
+    for ($i = 0; $i -lt $ALL_CONFIG_DIRS.Count; $i++) {
+        if ($TOOL_HAS_DIR[$i] -eq "no_dir") {
+            $ORDERED_INDICES += $i
+        }
+    }
+
+    # 按顺序构建菜单项（简单字符串数组，实际颜色在 Draw-Menu 中处理）
+    $MENU_ITEMS = @()
+
+    foreach ($i in $ORDERED_INDICES) {
+        $cfg = $ALL_CONFIG_DIRS[$i]
+        $tn = Get-ToolName -dir $cfg
+        $dir = $TOOL_DIRS[$i]
+        $status = $TOOL_STATUSES[$i]
+
+        if ($dir -ne "") {
+            if ($status -eq "installed") {
+                $MENU_ITEMS += "$tn  $dir  $(Get-Text "installed")"
+            } else {
+                $MENU_ITEMS += "$tn  $dir"
+            }
+        } else {
+            $MENU_ITEMS += "$tn  ($cfg - $(Get-Text "not_configured"))"
+        }
+    }
+
+    # 添加退出选项
+    $MENU_ITEMS += "$(Get-Text "exit_installer")"
+
+    # 显示交互式菜单（单选）
+    $selectedIndices = @()
+    if (Show-InteractiveMenu -Title "$(Get-Text "menu_title")" -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
+        $idx = $selectedIndices[0]
+
+        # 检查是否选择了退出选项
+        if ($idx -eq $ORDERED_INDICES.Count) {
+            Write-Host "$(Get-Text "install_cancelled")" -ForegroundColor Red
+            $host.UI.RawCursorVisible = $true
+            exit 0
+        }
+
+        $original_idx = $ORDERED_INDICES[$idx]
+        $cfg = $ALL_CONFIG_DIRS[$original_idx]
+        $dir = $TOOL_DIRS[$original_idx]
+
+        if ($dir -ne "") {
+            # 已有配置目录，直接安装
+            Do-Install -cfgDir $dir
+        } else {
+            # 没有配置目录，需要创建
+            Write-Host ""
+            Write-Host "⚠️  $cfg $(Get-Text "not_configured_warning")" -ForegroundColor Yellow
+            Write-Host ""
+            $response = Read-Host "$(Get-Text "create_dir_prompt") $cfg$(Get-Text "create_dir_suffix")"
+            Write-Host ""
+
+            if ($response -match '^[Yy]$') {
+                Do-Install -cfgDir (Join-Path (Get-Location) $cfg)
+            } else {
+                Write-Host "$(Get-Text "install_cancelled")" -ForegroundColor Red
+                $host.UI.RawCursorVisible = $true
+                exit 0
+            }
         }
     } else {
-        $MENU_ITEMS += "$tn  ($cfg - 未配置)"
-    }
-}
-
-# 添加退出选项
-$MENU_ITEMS += "退出安装程序"
-
-# 显示交互式菜单（单选）
-$selectedIndices = @()
-if (Show-InteractiveMenu -Title "请选择要安装/升级的工具" -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
-    $idx = $selectedIndices[0]
-
-    # 检查是否选择了退出选项
-    if ($idx -eq $ORDERED_INDICES.Count) {
-        Write-Host "安装已取消" -ForegroundColor Red
+        Write-Host "$(Get-Text "install_cancelled")" -ForegroundColor Red
         $host.UI.RawCursorVisible = $true
         exit 0
     }
 
-    $original_idx = $ORDERED_INDICES[$idx]
-    $cfg = $ALL_CONFIG_DIRS[$original_idx]
-    $dir = $TOOL_DIRS[$original_idx]
-
-    if ($dir -ne "") {
-        # 已有配置目录，直接安装
-        Do-Install -cfgDir $dir
-    } else {
-        # 没有配置目录，需要创建
-        Write-Host ""
-        Write-Host "⚠️  $cfg 尚未配置" -ForegroundColor Yellow
-        Write-Host ""
-        $response = Read-Host "是否在当前目录创建 $cfg/skills/ 目录？[y/N]"
-        Write-Host ""
-
-        if ($response -match '^[Yy]$') {
-            Do-Install -cfgDir (Join-Path (Get-Location) $cfg)
-        } else {
-            Write-Host "安装已取消" -ForegroundColor Red
-            $host.UI.RawCursorVisible = $true
-            exit 0
-        }
-    }
-} else {
-    Write-Host "安装已取消" -ForegroundColor Red
-    $host.UI.RawCursorVisible = $true
-    exit 0
-}
-
-Write-Host ""
-Write-Host "使用方法:" -ForegroundColor Cyan
-Write-Host "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式"
-Write-Host "  /planify               - 交互式选择要升级的 skill"
-Write-Host ""
+    Write-Host ""
+    Write-Host "$(Get-Text "usage")" -ForegroundColor Cyan
+    Write-Host "$(Get-Text "usage_1")"
+    Write-Host "$(Get-Text "usage_2")"
+    Write-Host ""
 } finally {
     # 确保退出时显示光标
     try {

@@ -29,6 +29,77 @@ NC="\033[0m"
 # 所有支持的配置目录
 ALL_CONFIG_DIRS=(".claude" ".opencode" ".qwen" ".codex" ".gemini" ".antigravity" ".windsurf" ".roocode" ".kilocode" ".codebuddy" ".qoder")
 
+# 判断是否为中文环境
+is_chinese_language() {
+    # 检查 LANG 环境变量
+    if [[ "$LANG" == zh_CN* || "$LANG" == zh_TW* || "$LANG" == zh_SG* || "$LANG" == zh_HK* ]]; then
+        return 0
+    fi
+    # 检查 locale 命令输出
+    if command -v locale >/dev/null 2>&1 && locale 2>/dev/null | grep -q 'LC_CTYPE.*zh_CN\|LC_CTYPE.*zh_TW\|LC_CTYPE.*zh_SG\|LC_CTYPE.*zh_HK'; then
+        return 0
+    fi
+    # macOS 特别检查
+    if [[ "$(defaults read -g AppleLanguages 2>/dev/null)" == *zh-* ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# 根据语言获取文本
+get_text() {
+    local key="$1"
+    if is_chinese_language; then
+        case "$key" in
+            "installer_title") echo "Planify Skill 安装程序" ;;
+            "detecting_config") echo "正在检测当前项目的 AI 工具配置目录..." ;;
+            "menu_title") echo "请选择要安装/升级的工具" ;;
+            "menu_hint") echo "使用 ↑↓ 选择，Enter 确认，0 取消" ;;
+            "installed") echo "[已安装]" ;;
+            "not_configured") echo "未配置" ;;
+            "exit_installer") echo "退出安装程序" ;;
+            "install_cancelled") echo "安装已取消" ;;
+            "detected_installed") echo "检测到已安装的 planify skill" ;;
+            "upgrading") echo "即将升级到最新版本..." ;;
+            "starting_install") echo "开始安装 planify skill..." ;;
+            "downloading") echo "下载" ;;
+            "install_success") echo "✅ 安装成功！" ;;
+            "location") echo "位置" ;;
+            "install_failed") echo "❌ 安装失败" ;;
+            "not_configured_warning") echo "⚠️  尚未配置" ;;
+            "create_dir_prompt") echo "是否在当前目录创建" ;;
+            "create_dir_suffix") echo "/skills/ 目录？[y/N] " ;;
+            "usage") echo "使用方法:" ;;
+            "usage_1") echo "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式" ;;
+            "usage_2") echo "  /planify               - 交互式选择要升级的 skill" ;;
+        esac
+    else
+        case "$key" in
+            "installer_title") echo "Planify Skill Installer" ;;
+            "detecting_config") echo "Detecting AI tool config directories..." ;;
+            "menu_title") echo "Select tool to install/upgrade" ;;
+            "menu_hint") echo "Use ↑↓ to select, Enter to confirm, 0 to cancel" ;;
+            "installed") echo "[installed]" ;;
+            "not_configured") echo "not configured" ;;
+            "exit_installer") echo "Exit installer" ;;
+            "install_cancelled") echo "Installation cancelled" ;;
+            "detected_installed") echo "Existing planify skill detected" ;;
+            "upgrading") echo "Upgrading to latest version..." ;;
+            "starting_install") echo "Starting planify skill installation..." ;;
+            "downloading") echo "Downloading" ;;
+            "install_success") echo "✅ Installation successful!" ;;
+            "location") echo "Location" ;;
+            "install_failed") echo "❌ Installation failed" ;;
+            "not_configured_warning") echo "⚠️  Not configured" ;;
+            "create_dir_prompt") echo "Create" ;;
+            "create_dir_suffix") echo "/skills/ directory? [y/N] " ;;
+            "usage") echo "Usage:" ;;
+            "usage_1") echo "  /planify <skill-name>  - Upgrade a skill to plan-driven mode" ;;
+            "usage_2") echo "  /planify               - Interactive skill selection" ;;
+        esac
+    fi
+}
+
 # 获取工具显示名称
 get_tool_name() {
     case "$1" in
@@ -92,26 +163,32 @@ do_install() {
     local tool_name="$(get_tool_name "$cfg_name")"
     local target="$cfg_dir/skills/planify"
 
+    # 根据语言选择 skill 目录
+    local skill_dir="planify"
+    if ! is_chinese_language; then
+        skill_dir="planify-en"
+    fi
+
     echo ""
     if is_installed "$cfg_dir"; then
-        printf "${CYAN}[%s] 检测到已安装的 planify skill${NC}\n" "$tool_name"
-        echo "即将升级到最新版本..."
+        printf "${CYAN}[%s] $(get_text "detected_installed")${NC}\n" "$tool_name"
+        echo "$(get_text "upgrading")"
     else
-        printf "${CYAN}[%s] 开始安装 planify skill...${NC}\n" "$tool_name"
+        printf "${CYAN}[%s] $(get_text "starting_install")${NC}\n" "$tool_name"
     fi
 
     mkdir -p "$target"
 
     for file in SKILL.md example.md planify-template.md; do
-        printf "  下载 %s...\n" "$file"
-        curl -sSL "https://raw.githubusercontent.com/${REPO}/${BRANCH}/$cfg_name/skills/planify/${file}" -o "$target/$file"
+        printf "  $(get_text "downloading") %s...\n" "$file"
+        curl -sSL "https://raw.githubusercontent.com/${REPO}/${BRANCH}/.claude/skills/${skill_dir}/${file}" -o "$target/$file"
     done
 
     if [ -f "$target/SKILL.md" ]; then
-        printf "${GREEN}  ✅ 安装成功！${NC}\n"
-        printf "     位置：%s\n" "$target"
+        printf "${GREEN}  $(get_text "install_success")${NC}\n"
+        printf "     $(get_text "location")：%s\n" "$target"
     else
-        printf "${RED}  ❌ 安装失败${NC}\n"
+        printf "${RED}  $(get_text "install_failed")${NC}\n"
         exit 1
     fi
 }
@@ -138,7 +215,7 @@ interactive_menu() {
         # 1. 渲染菜单
         echo ""
         echo -e "--- $title ---"
-        echo -e "${GRAY}使用 ↑↓ 选择，Enter 确认，0 取消${NC}"
+        echo -e "${GRAY}$(get_text "menu_hint")${NC}"
         echo ""
 
         for i in "${!options[@]}"; do
@@ -198,9 +275,9 @@ echo "█▀▀█ █░░░ █▀▀█ █▀▀▄ ▀█▀ █▀▀▀
 echo "█▀▀▀ █░░░ █▀▀█ █░░█ ░█░ █▀▀  ▀▀▀█"
 echo "▀░░░ ▀▀▀▀ ▀░░▀ ▀░░▀ ▀▀▀ ▀░░░ ▀▀▀▀"
 echo ""
-printf "${BOLD}${CYAN}Planify Skill 安装程序${NC}\n"
+printf "${BOLD}${CYAN}$(get_text "installer_title")${NC}\n"
 echo ""
-echo "正在检测当前项目的 AI 工具配置目录..."
+echo "$(get_text "detecting_config")"
 echo ""
 
 FOUND_DIRS="$(find_project_configs)"
@@ -269,24 +346,24 @@ for i in "${ORDERED_INDICES[@]}"; do
 
     if [ -n "$dir" ]; then
         if [ "$status" = "installed" ]; then
-            MENU_ITEMS+=("$tn  ${GRAY}$dir${NC}  ${DARK_GREEN}[已安装]${NC}")
+            MENU_ITEMS+=("$tn  ${GRAY}$dir${NC}  ${DARK_GREEN}$(get_text "installed")${NC}")
         else
             MENU_ITEMS+=("$tn  ${GRAY}$dir${NC}")
         fi
     else
-        MENU_ITEMS+=("$tn  ${GRAY}($cfg - 未配置)${NC}")
+        MENU_ITEMS+=("$tn  ${GRAY}($cfg - $(get_text "not_configured"))${NC}")
     fi
 done
 
 # 添加退出选项
-MENU_ITEMS+=("退出安装程序")
+MENU_ITEMS+=("$(get_text "exit_installer")")
 
 # 显示交互式菜单（单选）
 RESULT_INDICES=()
-interactive_menu "${GREEN}请选择要安装/升级的工具${NC}" "false" "${MENU_ITEMS[@]}"
+interactive_menu "${GREEN}$(get_text "menu_title")${NC}" "false" "${MENU_ITEMS[@]}"
 
 if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
-    printf "\n${RED}安装已取消${NC}\n"
+    printf "\n${RED}$(get_text "install_cancelled")${NC}\n"
     exit 0
 fi
 
@@ -294,7 +371,7 @@ idx="${RESULT_INDICES[0]}"
 
 # 检查是否选择了退出选项
 if [ "$idx" -eq "${#ORDERED_INDICES[@]}" ]; then
-    printf "\n${RED}安装已取消${NC}\n"
+    printf "\n${RED}$(get_text "install_cancelled")${NC}\n"
     exit 0
 fi
 
@@ -308,21 +385,21 @@ if [ -n "$dir" ]; then
 else
     # 没有配置目录，需要创建
     echo ""
-    printf "${YELLOW}⚠️  $cfg 尚未配置${NC}\n"
+    printf "${YELLOW}⚠️  $cfg $(get_text "not_configured_warning")${NC}\n"
     echo ""
-    read -p "是否在当前目录创建 $cfg/skills/ 目录？[y/N] " -n 1 -r
+    read -p "$(get_text "create_dir_prompt") $cfg$(get_text "create_dir_suffix")" -n 1 -r
     echo ""
 
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         do_install "$(pwd)/$cfg"
     else
-        printf "${RED}安装已取消${NC}\n"
+        printf "${RED}$(get_text "install_cancelled")${NC}\n"
         exit 0
     fi
 fi
 
 echo ""
-printf "${BOLD}使用方法:${NC}\n"
-echo "  /planify <skill-name>  - 升级指定 skill 为 plan 驱动模式"
-echo "  /planify               - 交互式选择要升级的 skill"
+printf "${BOLD}$(get_text "usage")${NC}\n"
+echo "$(get_text "usage_1")"
+echo "$(get_text "usage_2")"
 echo ""
