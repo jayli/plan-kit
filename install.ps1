@@ -30,14 +30,33 @@ function Find-ProjectConfigs {
     $currentDir = Get-Location
     $found = @()
 
-    while ($currentDir.Parent -ne $null) {
+    # 1. 向上查找局部配置
+    $tempDir = $currentDir
+    while ($tempDir -ne $null) {
         foreach ($cfg in $ALL_CONFIG_DIRS) {
-            $testPath = Join-Path $currentDir $cfg
+            $testPath = Join-Path $tempDir.Path $cfg
             if (Test-Path $testPath) {
+                if ($found -notcontains $testPath) {
+                    $found += $testPath
+                }
+            }
+        }
+        $tempDir = $tempDir.Parent
+    }
+
+    # 2. 查找全局配置
+    $homeDir = $env:USERPROFILE
+    if ($IsMacOS -or $IsLinux) {
+        $homeDir = $env:HOME
+    }
+
+    foreach ($cfg in $ALL_CONFIG_DIRS) {
+        $testPath = Join-Path $homeDir $cfg
+        if (Test-Path $testPath) {
+            if ($found -notcontains $testPath) {
                 $found += $testPath
             }
         }
-        $currentDir = $currentDir.Parent
     }
 
     return $found
@@ -215,11 +234,10 @@ if ($FOUND_DIRS.Count -gt 0) {
 
     # 显示交互式菜单
     $selectedIndices = @()
-    if (Show-InteractiveMenu -Items $MENU_ITEMS -MultiSelect -SelectedIndices ([ref]$selectedIndices)) {
+    if (Show-InteractiveMenu -Items $MENU_ITEMS -SelectedIndices ([ref]$selectedIndices)) {
         # 安装到选中的目录
-        foreach ($idx in $selectedIndices) {
-            Do-Install -cfgDir $FOUND_DIRS[$idx]
-        }
+        $idx = $selectedIndices[0]
+        Do-Install -cfgDir $FOUND_DIRS[$idx]
     } else {
         Write-Host "安装已取消" -ForegroundColor Red
         exit 0

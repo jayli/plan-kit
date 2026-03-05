@@ -37,24 +37,34 @@ get_tool_name() {
     esac
 }
 
-# 查找项目中的配置目录
+# 查找项目中的配置目录（包括局部和全局）
 find_project_configs() {
     local current_dir="$(pwd)"
     local found_list=""
 
+    # 1. 向上查找局部配置
     while [ "$current_dir" != "/" ] && [ "$current_dir" != "" ]; do
         for cfg in "${ALL_CONFIG_DIRS[@]}"; do
             if [ -d "$current_dir/$cfg" ]; then
-                if [ -n "$found_list" ]; then
-                    found_list="$found_list|$current_dir/$cfg"
-                else
-                    found_list="$current_dir/$cfg"
+                if [[ "$found_list" != *"$current_dir/$cfg"* ]]; then
+                    [ -n "$found_list" ] && found_list="$found_list|"
+                    found_list="${found_list}${current_dir}/$cfg"
                 fi
             fi
         done
         local parent="$(dirname "$current_dir")"
         [ "$parent" = "$current_dir" ] && break
         current_dir="$parent"
+    done
+
+    # 2. 查找全局配置
+    for cfg in "${ALL_CONFIG_DIRS[@]}"; do
+        if [ -d "$HOME/$cfg" ]; then
+            if [[ "$found_list" != *"$HOME/$cfg"* ]]; then
+                [ -n "$found_list" ] && found_list="$found_list|"
+                found_list="${found_list}${HOME}/$cfg"
+            fi
+        fi
     done
 
     printf '%s' "$found_list"
@@ -108,12 +118,6 @@ interactive_menu() {
     local cur=0
     local key=""
 
-    # 选中状态数组
-    declare -A selected
-
-    # 隐藏光标
-    printf "\033[?25l"
-
     # 计算需要向上移动的行数
     local move_up=$((count + 3))
 
@@ -121,30 +125,14 @@ interactive_menu() {
         # 1. 渲染菜单
         echo ""
         echo -e "--- $title ---"
-        if [ "$multi_select" = "true" ]; then
-            echo -e "${GRAY}空格：选中/取消  Enter: 确认  0: 取消${NC}"
-        else
-            echo -e "${GRAY}Enter: 确认  0: 取消${NC}"
-        fi
+        echo -e "${GRAY}使用 ↑↓ 选择，Enter 确认，0 取消${NC}"
         echo ""
 
         for i in "${!options[@]}"; do
             if [[ $i -eq $cur ]]; then
-                if [ "$multi_select" = "true" ] && [ -n "${selected[$i]}" ]; then
-                    echo -e "${CYAN}  > [✓] ${options[$i]}${NC}"
-                elif [ "$multi_select" = "true" ]; then
-                    echo -e "${CYAN}  > [ ] ${options[$i]}${NC}"
-                else
-                    echo -e "${CYAN}  > ${options[$i]}${NC}"
-                fi
+                echo -e "${CYAN}  > ${options[$i]}${NC}"
             else
-                if [ "$multi_select" = "true" ] && [ -n "${selected[$i]}" ]; then
-                    echo -e "    ${GREEN}[✓]${NC} ${options[$i]}"
-                elif [ "$multi_select" = "true" ]; then
-                    echo -e "    [ ] ${options[$i]}"
-                else
-                    echo -e "    ${options[$i]}"
-                fi
+                echo -e "    ${options[$i]}"
             fi
         done
 
@@ -168,26 +156,8 @@ interactive_menu() {
                 ((cur++))
                 [ $cur -ge $count ] && cur=0
                 ;;
-            " ") # 空格 - 仅多选模式
-                if [ "$multi_select" = "true" ]; then
-                    if [ -n "${selected[$cur]}" ]; then
-                        unset selected[$cur]
-                    else
-                        selected[$cur]=1
-                    fi
-                fi
-                ;;
             "" | $'\n' | $'\r') # Enter
-                # 多选模式：如果没有选择任何项，默认选中当前项
-                if [ "$multi_select" = "true" ]; then
-                    if [ ${#selected[@]} -eq 0 ]; then
-                        RESULT_INDICES=($cur)
-                    else
-                        RESULT_INDICES=(${!selected[@]})
-                    fi
-                else
-                    RESULT_INDICES=($cur)
-                fi
+                RESULT_INDICES=($cur)
                 break
                 ;;
             "0") # 取消
@@ -240,9 +210,9 @@ if [ -n "$FOUND_DIRS" ]; then
         fi
     done
 
-    # 显示交互式菜单（多选）
+    # 显示交互式菜单（单选）
     RESULT_INDICES=()
-    interactive_menu "请选择要安装/升级的工具（多选）" "true" "${MENU_ITEMS[@]}"
+    interactive_menu "请选择要安装/升级的工具" "false" "${MENU_ITEMS[@]}"
 
     if [ ${#RESULT_INDICES[@]} -eq 0 ]; then
         printf "\n${RED}安装已取消${NC}\n"
@@ -250,9 +220,8 @@ if [ -n "$FOUND_DIRS" ]; then
     fi
 
     # 安装到选中的目录
-    for idx in "${RESULT_INDICES[@]}"; do
-        do_install "${DIRS_ARR[$idx]}"
-    done
+    idx="${RESULT_INDICES[0]}"
+    do_install "${DIRS_ARR[$idx]}"
 
 else
     # 未找到配置目录
