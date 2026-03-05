@@ -28,6 +28,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - 阶段 B: 逐项执行任务，更新状态
   - 阶段 C: 清理上下文
 
+## 安装方法
+
+**Linux / macOS:**
+```bash
+curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.sh | sh
+```
+
+**Windows PowerShell:**
+```powershell
+iwr https://raw.githubusercontent.com/jayli/plan-kit/main/install.ps1 -useb | iex
+```
+
+**Windows (Git Bash / WSL):**
+```bash
+curl -sSL https://raw.githubusercontent.com/jayli/plan-kit/main/install.sh | sh
+```
+
 ## 使用方法
 
 ```bash
