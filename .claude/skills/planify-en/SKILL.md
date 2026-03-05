@@ -1,6 +1,6 @@
 ---
-name: planify-en
-description: Detect and upgrade a skill to plan file-driven mode. Usage: /planify-en <skill-name>
+name: planify
+description: Detect and upgrade a skill to plan file-driven mode. Usage: /planify <skill-name>
 argument-hint: "<skill-name>"
 user-invocable: true
 ---
