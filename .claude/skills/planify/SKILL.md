@@ -69,14 +69,14 @@ user-invocable: true
 
 1. 分析用户输入的需求。首先判断用户有没有传入<skill-name>，传入<skill-name>则开启针对<skill-name> 的改造。
 2. 如果传入的不是 <skill-name>，而是一个提示词任务，则带入这个任务，进入接下来流程，即将任务拆解为具体的、可执行的原子任务步骤。
-3. 从 `settings.json` 读取 `skill_dir`，计算 plan 文件路径：`<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`
-4. 创建 `plan/` 目录（如果不存在）
+3. 从 planify skill 根目录的 `settings.json` 读取 `skill_dir`，计算 plan 文件路径：`<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`
+4. 创建 `plan/` 目录（如果不存在，创建在 planify skill 根目录下）
 5. 创建 plan 文件，根据需求写入任务列表，所有任务初始状态为 `[ ]`。
 6. **停止**，自动化模式下直接开始。
 
 #### 阶段 C: 执行循环 (如果 `plan 文件` 存在)
 
-1. **读取**: 读取 `plan 文件` 的当前内容。
+1. **读取**: 读取 plan 文件的当前内容（路径：`<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`）。
 2. **检查**:
    - 如果所有任务都是 `[x]`，输出"✅ 所有任务已完成"，并显示最终总结。结束。
    - 如果存在 `[!]` 错误任务，报告错误并询问是否重试或跳过。
@@ -86,7 +86,7 @@ user-invocable: true
    - 使用必要的工具 (读文件, 写文件, 编辑文件等)。
 4. **验证**: 确认任务是否成功完成。
 5. **更新 (关键步骤)**:
-   - 必须修改 `plan 文件`：
+   - 必须修改 plan 文件（`<skill_dir>/plan/plan.<skill-name>.<timestamp>.md`）：
      - 将当前任务状态改为 `[x]` (成功) 或 `[!]` (失败)。
      - 在"执行日志"部分追加本次操作的简要记录和结果（精确到分钟）。
    - 保存文件。
@@ -157,8 +157,10 @@ user-invocable: true
 
 ### 任务 7: 将 plan 目录加入 `.gitignore` 文件
 
-从 `settings.json` 读取 `skill_dir`，将 `<skill_dir>/plan/` 目录加入项目根目录的 `.gitignore` 文件中。
+从 planify skill 根目录的 `settings.json` 读取 `skill_dir`，将 `<skill_dir>/plan/` 目录加入**当前项目根目录**的 `.gitignore` 文件中。
 如果已经存在，则不做改动。
+
+注意：此任务是在目标项目中执行，而不是在 planify skill 的安装目录中。
 
 ### 任务 8: 清理旧的 plan 文件
 
